@@ -1,0 +1,4 @@
+#Author: Frosty_Flower
+
+#Support both Minimessage and ampersand formatting.
+chat-format: "<blue><hover:show_text:'{player}'>{player}:</hover></blue> &a{message}"

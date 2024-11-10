@@ -1,0 +1,22 @@
+name: Chat-Enhancer
+version: '1.0-SNAPSHOT'
+main: net.frosty.chatEnhancer.ChatEnhancer
+api-version: '1.18'
+authors: [ Frosty_Flower ]
+description: A simple plugin use for customising chat.
+softdepend:
+  - Vault
+  - PlaceholderAPI
+permissions:
+  chatenhancer.chatcolour:
+    description: "Allow player to chat using colour code."
+    default: op
+  chatenhancer.allowswear:
+    description: "Allow player to swear in chat."
+    default: op
+commands:
+  chat-enhancer:
+    aliases:
+      - ce
+    description: "Admin commands for chat enhancer."
+    usage: "§cError: §4Invalid usage."
