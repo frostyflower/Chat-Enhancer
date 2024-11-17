@@ -1,6 +1,8 @@
 package net.frosty.chatEnhancer;
 
-import net.frosty.chatEnhancer.utility.AnsiTranslator;
+import me.clip.placeholderapi.PlaceholderAPI;
+import net.frosty.chatEnhancer.utility.ColourTranslator;
+import net.frosty.chatEnhancer.utility.MuteManager;
 import net.frosty.chatEnhancer.utility.WordChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -36,14 +38,14 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     public void onEnable() {
         saveDefaultConfig();
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
-            getLogger().info(AnsiTranslator.translateToAnsi('&', "&aVault found and hooked.&r"));
+            getLogger().info(ColourTranslator.translateToAnsi('&', "&aVault found and hooked.&r"));
             RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
             if (rsp != null) {
                 chat = rsp.getProvider();
             }
         }
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            getLogger().info(AnsiTranslator.translateToAnsi('&', "&aPlaceholderAPI found and hooked.&r"));
+            getLogger().info(ColourTranslator.translateToAnsi('&', "&aPlaceholderAPI found and hooked.&r"));
         }
 
         try {
@@ -65,6 +67,13 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         String playerMessage = event.getMessage();
 
         if (isOnlyColourCode(playerMessage)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        MuteManager muteManager = new MuteManager();
+        if (muteManager.isPlayerMuted(player) || !player.hasPermission("chat-enhancer.bypass")) {
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYou have been muted!"));
             event.setCancelled(true);
             return;
         }
@@ -92,7 +101,24 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             }
             return false;
         }
+        if (command.getName().equalsIgnoreCase("mute")) {
+            if (args.length == 1) {
+                Player targetPlayer = Bukkit.getPlayerExact(args[0]);
+                if (targetPlayer == null) {
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
+                    return true;
+                }
 
+                MuteManager muteManager = new MuteManager();
+
+                if (muteManager.isPlayerMuted(targetPlayer)) {
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " already muted."));
+                    return true;
+                }
+
+                muteManager.mutePlayer(targetPlayer, (Player) sender);
+            }
+        }
         return true;
     }
 
@@ -114,12 +140,13 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
         assert template != null;
         template = template.replace("{player}", player.getName());
+        template = getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") ? PlaceholderAPI.setPlaceholders(player, template) : template;
 
         LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         MiniMessage miniMessage = MiniMessage.miniMessage();
         boolean chatColor = player.hasPermission("chat-enhancer.chatcolour");
 
-        return miniMessage.deserialize(translateToMiniMessage(template))
+        return miniMessage.deserialize(ColourTranslator.translateToMiniMessage(template))
                 .replaceText(builder -> builder.matchLiteral("{message}")
                         .replacement(chatColor ? legacyComponentSerializer.deserialize(message) : Component.text(message)))
                 .replaceText(builder -> builder.matchLiteral("{prefix}")
@@ -128,33 +155,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                         .replacement(legacyComponentSerializer.deserialize(suffix)))
                 .replaceText(builder -> builder.matchLiteral("{world}")
                         .replacement(world));
-    }
-
-    private static String translateToMiniMessage(String input) {
-        //Normal colours
-        input = input.replace("&1", "<dark_blue>")
-                .replace("&2", "<dark_green>")
-                .replace("&3", "<dark_aqua>")
-                .replace("&4", "<dark_red>")
-                .replace("&5", "<dark_purple>")
-                .replace("&6", "<dark_gold>")
-                .replace("&7", "<gray>")
-                .replace("&8", "<dark_gray>")
-                .replace("&9", "<blue>")
-                .replace("&a", "<green>")
-                .replace("&b", "<aqua>")
-                .replace("&c", "<red>")
-                .replace("&d", "<light_purple>")
-                .replace("&e", "<yellow>")
-                .replace("&f", "<white>")
-                //Special Characters
-                .replace("&k", "<obfuscated>")
-                .replace("&l", "<bold>")
-                .replace("&m", "<strikethrough>")
-                .replace("&n", "<underlined>")
-                .replace("&o", "<italic>")
-                .replace("&r", "<reset>");
-        return input;
     }
 
     private static boolean isOnlyColourCode(String message) {
