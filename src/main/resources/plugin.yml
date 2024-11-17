@@ -35,3 +35,9 @@ commands:
     permission: "chatenhancer.mute"
     permission-message: "§cError: §4You don't have the right to use this command."
     default: op
+  unmute:
+    description: "Unmute a player if they're no longer annoyed you or other players."
+    usage: "§cError: §4Invalid usage."
+    permission: "chatenhancer.unmute"
+    permission-message: "§cError: §4You don't have the right to use this command."
+    default: op

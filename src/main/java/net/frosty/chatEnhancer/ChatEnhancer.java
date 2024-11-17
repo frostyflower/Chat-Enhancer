@@ -22,9 +22,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 @SuppressWarnings("deprecation")
@@ -33,6 +35,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
     private static Chat chat = null;
     private WordChecker wordChecker;
+    private MuteManager muteManager; // Declare the MuteManager field
 
     @Override
     public void onEnable() {
@@ -50,7 +53,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
         try {
             wordChecker = new WordChecker(this);
-        } catch (IOException e) {
+            muteManager = new MuteManager(this); // Initialize the MuteManager
+        } catch (IOException | SQLException e) {
             throw new RuntimeException(e);
         }
         getServer().getPluginManager().registerEvents(this, this);
@@ -58,7 +62,13 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-
+        try {
+            if (muteManager != null) {
+                muteManager.close(); // Close the MuteManager connection
+            }
+        } catch (SQLException e) {
+            Bukkit.getLogger().log(Level.SEVERE, "An error occurred!", e);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -71,15 +81,14 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             return;
         }
 
-        MuteManager muteManager = new MuteManager();
-        if (muteManager.isPlayerMuted(player) || !player.hasPermission("chat-enhancer.bypass")) {
+        if (muteManager.isPlayerMuted(player) && !player.hasPermission("chat-enhancer.bypass")) {
             player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYou have been muted!"));
             event.setCancelled(true);
             return;
         }
 
-        if (wordChecker.containsSwearWord(playerMessage) && (!player.hasPermission("chat-enhancer.allowswear"))) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYour chat contain banned words!"));
+        if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chat-enhancer.allowswear")) {
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYour chat contains banned words!"));
             event.setCancelled(true);
             return;
         }
@@ -90,13 +99,18 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         Bukkit.getServer().sendMessage(finalMessage);
     }
 
-
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        boolean isPlayer = sender instanceof Player;
+
         if (command.getName().equalsIgnoreCase("chat-enhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
-                sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aConfig reloaded successfully."));
+                if (isPlayer) {
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aConfig reloaded successfully."));
+                } else {
+                    Bukkit.getLogger().info(ColourTranslator.translateToAnsi('&', "&aConfig reloaded successfully."));
+                }
                 return true;
             }
             return false;
@@ -108,15 +122,25 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
                     return true;
                 }
-
-                MuteManager muteManager = new MuteManager();
-
                 if (muteManager.isPlayerMuted(targetPlayer)) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " already muted."));
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " is already muted."));
                     return true;
                 }
-
-                muteManager.mutePlayer(targetPlayer, (Player) sender);
+                muteManager.mutePlayer(targetPlayer, sender);
+            }
+        }
+        if (command.getName().equalsIgnoreCase("unmute")) {
+            if (args.length == 1) {
+                Player targetPlayer = Bukkit.getPlayerExact(args[0]);
+                if (targetPlayer == null) {
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
+                    return true;
+                }
+                if (!muteManager.isPlayerMuted(targetPlayer)) {
+                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " is not muted."));
+                    return true;
+                }
+                muteManager.unmutePlayer(targetPlayer, sender);
             }
         }
         return true;
@@ -127,11 +151,18 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("chat-enhancer") && args.length == 1) {
             return Collections.singletonList("reload");
         }
+        if (command.getName().equalsIgnoreCase("mute") || command.getName().equalsIgnoreCase("unmute")) {
+            List<String> allPlayers = new ArrayList<>();
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                allPlayers.add(player.getName());
+            }
+            return allPlayers;
+        }
 
         return new ArrayList<>();
     }
 
-    //Utility
+    // Utility
     private Component formattedMessage(Player player, String message) {
         String template = getConfig().getString("chat-format");
         String prefix = chat.getPlayerPrefix(player);
