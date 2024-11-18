@@ -41,3 +41,9 @@ commands:
     permission: "chatenhancer.unmute"
     permission-message: "§cError: §4You don't have the right to use this command."
     default: op
+  listmuted:
+    description: "Show list of muted players."
+    usage: "§cError: §4Invalid usage."
+    permission: "chatenhancer.listmuted"
+    permission-message: "§cError: §4You don't have the right to use this command."
+    default: op

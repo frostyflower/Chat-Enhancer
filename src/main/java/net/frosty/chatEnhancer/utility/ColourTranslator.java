@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ColourTranslator {
+
     private static final Map<Character, String> colorMap = new HashMap<>();
 
     static {

@@ -2,6 +2,7 @@ package net.frosty.chatEnhancer;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.frosty.chatEnhancer.utility.ColourTranslator;
+import net.frosty.chatEnhancer.utility.DbUtils;
 import net.frosty.chatEnhancer.utility.MuteManager;
 import net.frosty.chatEnhancer.utility.WordChecker;
 import net.kyori.adventure.text.Component;
@@ -22,80 +23,77 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
+
+import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToAnsi;
 
 @SuppressWarnings("deprecation")
 public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
+
     private static Chat chat = null;
     private WordChecker wordChecker;
     private MuteManager muteManager; // Declare the MuteManager field
+    private DbUtils dbUtils;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
-            getLogger().info(ColourTranslator.translateToAnsi('&', "&aVault found and hooked.&r"));
+            getLogger().info("Vault found.");
             RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
             if (rsp != null) {
                 chat = rsp.getProvider();
             }
+        } else {
+            getLogger().info("Vault not found. Please install Vault for better experience.");
         }
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            getLogger().info(ColourTranslator.translateToAnsi('&', "&aPlaceholderAPI found and hooked.&r"));
+            getLogger().info("PlaceholderAPI found.");
         }
 
         try {
             wordChecker = new WordChecker(this);
-            muteManager = new MuteManager(this); // Initialize the MuteManager
-        } catch (IOException | SQLException e) {
+            muteManager = new MuteManager();
+            this.dbUtils = new DbUtils(this);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        dbUtils.initDatabase();
         getServer().getPluginManager().registerEvents(this, this);
     }
 
     @Override
     public void onDisable() {
-        try {
-            if (muteManager != null) {
-                muteManager.close(); // Close the MuteManager connection
-            }
-        } catch (SQLException e) {
-            Bukkit.getLogger().log(Level.SEVERE, "An error occurred!", e);
-        }
+
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
+        event.setCancelled(true);
 
         if (isOnlyColourCode(playerMessage)) {
-            event.setCancelled(true);
             return;
         }
 
-        if (muteManager.isPlayerMuted(player) && !player.hasPermission("chat-enhancer.bypass")) {
+        if (DbUtils.getMuteCache().contains(player.getName()) && !player.hasPermission("chat-enhancer.bypass")) {
             player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYou have been muted!"));
-            event.setCancelled(true);
             return;
         }
 
         if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chat-enhancer.allowswear")) {
             player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYour chat contains banned words!"));
-            event.setCancelled(true);
             return;
         }
 
         Component finalMessage = formattedMessage(player, playerMessage);
-        event.setCancelled(true);
-
         Bukkit.getServer().sendMessage(finalMessage);
     }
 
@@ -109,7 +107,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 if (isPlayer) {
                     sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aConfig reloaded successfully."));
                 } else {
-                    Bukkit.getLogger().info(ColourTranslator.translateToAnsi('&', "&aConfig reloaded successfully."));
+                    Bukkit.getLogger().info(translateToAnsi('&', "&aConfig reloaded successfully."));
                 }
                 return true;
             }
@@ -122,10 +120,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
                     return true;
                 }
-                if (muteManager.isPlayerMuted(targetPlayer)) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " is already muted."));
-                    return true;
-                }
                 muteManager.mutePlayer(targetPlayer, sender);
             }
         }
@@ -136,13 +130,29 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
                     return true;
                 }
-                if (!muteManager.isPlayerMuted(targetPlayer)) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + targetPlayer.getName() + " is not muted."));
-                    return true;
-                }
                 muteManager.unmutePlayer(targetPlayer, sender);
             }
         }
+        if (command.getName().equalsIgnoreCase("listmuted")) {
+            sender.sendMessage(ChatColor.GOLD + "List of muted players:");
+            for (String[] mutedPlayer : dbUtils.getDbMutedPlayer()) {
+                if (mutedPlayer[3] != null) {
+                    if (isPlayer) {
+                        sender.sendMessage(ChatColor.GOLD + "- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | " + mutedPlayer[3]);
+                    } else {
+                        Bukkit.getLogger().info(translateToAnsi('&', "&6- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | " + mutedPlayer[3]));
+                    }
+                } else {
+                    if (isPlayer) {
+                        sender.sendMessage(ChatColor.RED + "- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | Permanent");
+                    } else {
+                        Bukkit.getLogger().info(translateToAnsi('&', "&c- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | Permanent"));
+                    }
+                }
+            }
+            return true;
+        }
+
         return true;
     }
 
