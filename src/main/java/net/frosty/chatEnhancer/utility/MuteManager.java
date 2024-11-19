@@ -6,26 +6,43 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public class MuteManager {
-    public void mutePlayer(Player player, CommandSender sender) {
+    public void mutePlayer(Player targetPlayer, CommandSender sender) {
         boolean isPlayer = sender instanceof Player;
-        if (DbUtils.addMutedPlayer(player.getName())) {
+        if (DbUtils.addMutedPlayer(targetPlayer.getName(), sender.getName(), null)) {
             if (isPlayer) {
-                sender.sendMessage(ChatColor.RED + player.getName() + " has been muted.");
+                sender.sendMessage(ChatColor.RED + targetPlayer.getName() + " has been muted.");
             } else {
-                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + player.getName() + " has been muted."));
+                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + targetPlayer.getName() + " has been muted."));
             }
         } else {
             if (isPlayer) {
-                sender.sendMessage(ChatColor.RED + player.getName() + " is already muted.");
+                sender.sendMessage(ChatColor.RED + targetPlayer.getName() + " is already muted.");
             } else {
-                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + player.getName() + " is already muted."));
+                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + targetPlayer.getName() + " is already muted."));
+            }
+        }
+    }
+
+    public void tempMutePlayer(Player targetPlayer, CommandSender sender, String expiration_date) {
+        boolean isPlayer = sender instanceof Player;
+        if (DbUtils.addMutedPlayer(targetPlayer.getName(), sender.getName(), expiration_date)) {
+            if (isPlayer) {
+                sender.sendMessage(ChatColor.RED + targetPlayer.getName() + " has been muted.");
+            } else {
+                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + targetPlayer.getName() + " has been muted."));
+            }
+        } else {
+            if (isPlayer) {
+                sender.sendMessage(ChatColor.RED + targetPlayer.getName() + " is already muted.");
+            } else {
+                Bukkit.getLogger().info(ChatColor.translateAlternateColorCodes('&', "&c" + targetPlayer.getName() + " is already muted."));
             }
         }
     }
 
     public void unmutePlayer(Player player, CommandSender sender) {
         boolean isPlayer = sender instanceof Player;
-        if (DbUtils.removeMutePlayer(player.getName())) {
+        if (DbUtils.removeMutedPlayer(player.getName())) {
             if (sender != null) {
                 sender.sendMessage(ChatColor.GREEN + player.getName() + " has been unmuted.");
             }
