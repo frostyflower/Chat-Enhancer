@@ -6,7 +6,6 @@ import net.frosty.chatEnhancer.utility.WordChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -21,9 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
@@ -33,6 +30,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
     private static Chat chat = null;
     private WordChecker wordChecker;
+
+    private static Set<Player> muteSpy = new HashSet<>();
 
     @Override
     public void onEnable() {
@@ -71,7 +70,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         String playerMessage = event.getMessage();
         if (event.isCancelled() && !player.hasPermission("essentials.mute.except")) {
             for (Player staffPlayer : Bukkit.getOnlinePlayers()) {
-                if (staffPlayer.hasPermission("chatenhancer.mute.see")) {
+                if (staffPlayer.hasPermission("chatenhancer.mute.see") && muteSpy.contains(staffPlayer)) {
                     staffPlayer.sendMessage(colourise(String.format("&8%s tried to speak: %s", player.getName(), playerMessage)));
                 }
             }
@@ -97,6 +96,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
+                return true;
+            }
+            if (args.length == 1 && args[0].equalsIgnoreCase("togglemutespy")) {
+                if (sender instanceof Player) {
+                    if (muteSpy.add((Player) sender)) {
+                        sender.sendMessage(colourise("&6Toggled mute spy to on."));
+                    } else {
+                        muteSpy.remove((Player) sender);
+                        sender.sendMessage(colourise("&6Toggle mute spy to off."));
+                    }
+                    return true;
+                }
+                Bukkit.getConsoleSender().sendMessage(colourise("&4This command is for player only."));
                 return true;
             }
             return false;

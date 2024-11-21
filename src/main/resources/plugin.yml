@@ -14,12 +14,6 @@ permissions:
   chatenhancer.allowswear:
     description: "Allow player to swear in chat."
     default: op
-  chatenhancer.mute.see:
-    description: "Allow staff user to see what muted player is sending."
-    default: op
-#  chatenhancer.bypass:
-#    description: "Allow player to chat even if muted."
-#    default: op
 commands:
   chat-enhancer:
     aliases:
@@ -29,24 +23,3 @@ commands:
     permission: "chatenhancer.admin"
     permission-message: "§cError: §4You don't have the right to use this command."
     default: op
-#  mute:
-#    aliases:
-#      - suppress
-#      - silence
-#    description: "Mute a player if they're too annoying."
-#    usage: "§cError: §4Invalid usage."
-#    permission: "chatenhancer.mute"
-#    permission-message: "§cError: §4You don't have the right to use this command."
-#    default: op
-#  unmute:
-#    description: "Unmute a player if they're no longer annoyed you or other players."
-#    usage: "§cError: §4Invalid usage."
-#    permission: "chatenhancer.unmute"
-#    permission-message: "§cError: §4You don't have the right to use this command."
-#    default: op
-#  listmuted:
-#    description: "Show list of muted players."
-#    usage: "§cError: §4Invalid usage."
-#    permission: "chatenhancer.listmuted"
-#    permission-message: "§cError: §4You don't have the right to use this command."
-#    default: op
