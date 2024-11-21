@@ -14,6 +14,9 @@ permissions:
   chatenhancer.allowswear:
     description: "Allow player to swear in chat."
     default: op
+  chatenhancer.mute.see:
+    description: "Allow staff user to see what muted player is sending."
+    default: op
 #  chatenhancer.bypass:
 #    description: "Allow player to chat even if muted."
 #    default: op

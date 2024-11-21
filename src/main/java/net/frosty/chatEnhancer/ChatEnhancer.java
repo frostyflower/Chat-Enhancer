@@ -69,12 +69,17 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
         if (event.isCancelled() && !player.hasPermission("essentials.mute.except")) {
+            for (Player staffPlayer : Bukkit.getOnlinePlayers()) {
+                if (staffPlayer.hasPermission("chatenhancer.mute.see")) {
+                    staffPlayer.sendMessage(colourise(String.format("&8%s tried to speak: %s", player.getName(), playerMessage)));
+                }
+            }
             return;
         }
         if (isOnlyColourCode(playerMessage)) {
             return;
         }
-        if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chat-enhancer.allowswear")) {
+        if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chatenhancer.allowswear")) {
             player.sendMessage(colourise("&cYour chat contains banned words!"));
             return;
         }
@@ -103,14 +108,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("chat-enhancer") && args.length == 1) {
             return Collections.singletonList("reload");
         }
-        if (command.getName().equalsIgnoreCase("mute") || command.getName().equalsIgnoreCase("unmute")) {
-            List<String> allPlayers = new ArrayList<>();
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                allPlayers.add(player.getName());
-            }
-            return allPlayers;
-        }
-
         return new ArrayList<>();
     }
 
@@ -127,7 +124,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
         LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         MiniMessage miniMessage = MiniMessage.miniMessage();
-        boolean chatColor = player.hasPermission("chat-enhancer.chatcolour");
+        boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
 
         return miniMessage.deserialize(ColourTranslator.translateToMiniMessage(template))
                 .replaceText(builder -> builder.matchLiteral("{message}")
@@ -144,5 +141,4 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         String strippedMessage = COLOR_CODE_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
     }
-
 }
