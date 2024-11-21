@@ -29,13 +29,9 @@ import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
 
 @SuppressWarnings("deprecation")
 public final class ChatEnhancer extends JavaPlugin implements Listener {
-
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
-//    private static final Pattern LOCAL_DATETIME_REGEX = Pattern.compile("^(\\d+)([mhdMyY]|mo|MO)$", Pattern.CASE_INSENSITIVE);
-
     private static Chat chat = null;
     private WordChecker wordChecker;
-//    private static Set<MuteRecord> muteRecordSet = new HashSet<>();
 
     @Override
     public void onEnable() {
@@ -59,21 +55,12 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             throw new RuntimeException(e);
         }
 
-//        muteRecordSet = MuteRecord.loadMuteRecords();
         getServer().getPluginManager().registerEvents(this, this);
-
-//        new BukkitRunnable() {
-//            @Override
-//            public void run() {
-//                getComponentLogger().info(colourise("&6Checking temporary mutes."));
-//                checkTempMute();
-//            }
-//        }.runTaskTimer(this, 0L, 1200L);
     }
 
     @Override
     public void onDisable() {
-//        MuteRecord.saveMuteRecords(muteRecordSet);
+        //Nothing here.
     }
 
     //Chat event
