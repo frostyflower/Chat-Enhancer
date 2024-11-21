@@ -2,15 +2,12 @@ package net.frosty.chatEnhancer;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.frosty.chatEnhancer.utility.ColourTranslator;
-import net.frosty.chatEnhancer.utility.DbUtils;
-import net.frosty.chatEnhancer.utility.MuteManager;
 import net.frosty.chatEnhancer.utility.WordChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -23,24 +20,22 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToAnsi;
+import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
 
 @SuppressWarnings("deprecation")
 public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
-    private static final Pattern LOCAL_DATETIME_REGEX = Pattern.compile("^(\\d+)([mhdMyY]|mo|MO)$", Pattern.CASE_INSENSITIVE);
+//    private static final Pattern LOCAL_DATETIME_REGEX = Pattern.compile("^(\\d+)([mhdMyY]|mo|MO)$", Pattern.CASE_INSENSITIVE);
 
     private static Chat chat = null;
     private WordChecker wordChecker;
-    private MuteManager muteManager;
+//    private static Set<MuteRecord> muteRecordSet = new HashSet<>();
 
     @Override
     public void onEnable() {
@@ -58,22 +53,27 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             getLogger().info("PlaceholderAPI found.");
         }
 
-        DbUtils dbUtils;
         try {
             wordChecker = new WordChecker(this);
-            muteManager = new MuteManager();
-            dbUtils = new DbUtils(this);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        dbUtils.initDatabase();
+//        muteRecordSet = MuteRecord.loadMuteRecords();
         getServer().getPluginManager().registerEvents(this, this);
+
+//        new BukkitRunnable() {
+//            @Override
+//            public void run() {
+//                getComponentLogger().info(colourise("&6Checking temporary mutes."));
+//                checkTempMute();
+//            }
+//        }.runTaskTimer(this, 0L, 1200L);
     }
 
     @Override
     public void onDisable() {
-        //Nothing here for now.
+//        MuteRecord.saveMuteRecords(muteRecordSet);
     }
 
     //Chat event
@@ -81,22 +81,18 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
-        event.setCancelled(true);
-
+        if (event.isCancelled() && !player.hasPermission("essentials.mute.except")) {
+            return;
+        }
         if (isOnlyColourCode(playerMessage)) {
             return;
         }
-
-        if (DbUtils.getMuteCache().contains(player.getName()) && !player.hasPermission("chat-enhancer.bypass")) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYou have been muted!"));
-            return;
-        }
-
         if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chat-enhancer.allowswear")) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYour chat contains banned words!"));
+            player.sendMessage(colourise("&cYour chat contains banned words!"));
             return;
         }
 
+        event.setCancelled(true);
         Component finalMessage = formattedMessage(player, playerMessage);
         Bukkit.getServer().sendMessage(finalMessage);
     }
@@ -104,73 +100,15 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     //Commands
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        boolean isPlayer = sender instanceof Player;
-
         if (command.getName().equalsIgnoreCase("chat-enhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
-                if (isPlayer) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aConfig reloaded successfully."));
-                } else {
-                    Bukkit.getLogger().info(translateToAnsi('&', "&aConfig reloaded successfully."));
-                }
+                sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
             }
             return false;
         }
-        if (command.getName().equalsIgnoreCase("mute")) {
-            Player targetPlayer = Bukkit.getPlayerExact(args[0]);
-            if (args.length == 1) {
-                if (targetPlayer == null) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
-                    return true;
-                }
-                muteManager.mutePlayer(targetPlayer, sender);
-            }
-            if (args.length == 2) {
-                if (targetPlayer == null) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
-                    return true;
-                }
-                LocalDateTime localDateTime;
-                try {
-                    localDateTime = manipulateDateTime(LocalDateTime.now(), args[1]);
-                } catch (IllegalArgumentException e) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4" + e.getMessage()));
-                }
-                muteManager.tempMutePlayer(targetPlayer, sender, args[0]);
-            }
-        }
-        if (command.getName().equalsIgnoreCase("unmute")) {
-            if (args.length == 1) {
-                Player targetPlayer = Bukkit.getPlayerExact(args[0]);
-                if (targetPlayer == null) {
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cError: &4Can't find that player."));
-                    return true;
-                }
-                muteManager.unmutePlayer(targetPlayer, sender);
-            }
-        }
-        if (command.getName().equalsIgnoreCase("listmuted")) {
-            sender.sendMessage(ChatColor.GOLD + "List of muted players:");
-            for (String[] mutedPlayer : DbUtils.getDbMutedPlayer()) {
-                if (mutedPlayer[3] != null) {
-                    if (isPlayer) {
-                        sender.sendMessage(ChatColor.GOLD + "- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | " + mutedPlayer[3]);
-                    } else {
-                        Bukkit.getLogger().info(translateToAnsi('&', "&6- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | " + mutedPlayer[3]));
-                    }
-                } else {
-                    if (isPlayer) {
-                        sender.sendMessage(ChatColor.RED + "- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | Permanent");
-                    } else {
-                        Bukkit.getLogger().info(translateToAnsi('&', "&c- " + mutedPlayer[0] + " | " + mutedPlayer[1] + " | " + mutedPlayer[2] + " | Permanent"));
-                    }
-                }
-            }
-            return true;
-        }
-        return true;
+        return false;
     }
 
     @Override
@@ -189,7 +127,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         return new ArrayList<>();
     }
 
-    // Utility
+    //Utility.
     private Component formattedMessage(Player player, String message) {
         String template = getConfig().getString("chat-format");
         String prefix = chat.getPlayerPrefix(player);
@@ -220,27 +158,4 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         return strippedMessage.trim().isEmpty();
     }
 
-    public static LocalDateTime manipulateDateTime(LocalDateTime dateTime, String input) {
-        Matcher matcher = LOCAL_DATETIME_REGEX.matcher(input);
-        if (matcher.matches()) {
-            int value = Integer.parseInt(matcher.group(1));
-            String unit = matcher.group(2).toLowerCase();
-            return switch (unit) {
-                case "m" -> dateTime.plusMinutes(value);
-                case "h" -> dateTime.plusHours(value);
-                case "d" -> dateTime.plusDays(value);
-                case "mo" -> dateTime.plusMonths(value);
-                case "y" -> dateTime.plusYears(value);
-                default -> throw new IllegalArgumentException("Invalid time unit: " + unit);
-            };
-        } else {
-            throw new IllegalArgumentException("Input does not match the required pattern");
-        }
-    }
-
-
-//    public static boolean regexDateTimeIsMatched(String input) {
-//        Matcher matcher = DATETIME_REGEX.matcher(input);
-//        return matcher.matches();
-//    }
 }

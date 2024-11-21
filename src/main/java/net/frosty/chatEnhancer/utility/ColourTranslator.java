@@ -1,5 +1,8 @@
 package net.frosty.chatEnhancer.utility;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,16 +30,20 @@ public class ColourTranslator {
         colorMap.put('r', "\u001B[0m");  // Reset
     }
 
-    public static String translateToAnsi(char charToTranslate, String text) {
+    public static Component colourise(String text) {
+        return LegacyComponentSerializer.legacyAmpersand().deserialize(text);
+    }
+
+    public static String translateToAnsi(String text) {
         StringBuilder translated = new StringBuilder();
         char[] chars = text.toCharArray();
         for (int i = 0; i < chars.length; i++) {
-            if (chars[i] == charToTranslate && i + 1 < chars.length) {
+            if (chars[i] == '&' && i + 1 < chars.length) {
                 char colorCode = chars[i + 1];
                 String ansi = colorMap.get(colorCode);
                 if (ansi != null) {
                     translated.append(ansi);
-                    i++; // Skip the next character as it is part of the color code
+                    i++;
                 } else {
                     translated.append(chars[i]);
                 }
