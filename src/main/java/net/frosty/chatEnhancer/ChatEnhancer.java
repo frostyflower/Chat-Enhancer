@@ -79,6 +79,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             }
             return;
         }
+        event.setCancelled(true);
         if (isOnlyColourCode(playerMessage)) {
             return;
         }
@@ -86,8 +87,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             player.sendMessage(colourise("&cProfanity is not allowed!"));
             return;
         }
-
-        event.setCancelled(true);
         Component finalMessage = formattedMessage(player, playerMessage);
         Bukkit.getServer().sendMessage(finalMessage);
     }
