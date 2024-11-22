@@ -1,4 +1,4 @@
-name: Chat-Enhancer
+name: ChatEnhancer
 version: '1.0-SNAPSHOT'
 main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
@@ -13,6 +13,9 @@ permissions:
     default: op
   chatenhancer.allowswear:
     description: "Allow player to swear in chat."
+    default: op
+  chatenhancer.admin:
+    description: "Staff permission node."
     default: op
 commands:
   chat-enhancer:

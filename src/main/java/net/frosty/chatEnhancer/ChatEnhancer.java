@@ -1,8 +1,7 @@
 package net.frosty.chatEnhancer;
 
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.frosty.chatEnhancer.utility.ColourTranslator;
-import net.frosty.chatEnhancer.utility.WordChecker;
+import net.frosty.chatEnhancer.utility.ProfanityFilter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -20,18 +19,22 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
+import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToMiniMessage;
 
 @SuppressWarnings("deprecation")
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
     private static Chat chat = null;
-    private WordChecker wordChecker;
+    private ProfanityFilter profanityFilter;
 
-    private static Set<Player> muteSpy = new HashSet<>();
+    private static final Set<Player> muteSpy = new HashSet<>();
 
     @Override
     public void onEnable() {
@@ -50,7 +53,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
 
         try {
-            wordChecker = new WordChecker(this);
+            profanityFilter = new ProfanityFilter(this);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -79,8 +82,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         if (isOnlyColourCode(playerMessage)) {
             return;
         }
-        if (wordChecker.containsSwearWord(playerMessage) && !player.hasPermission("chatenhancer.allowswear")) {
-            player.sendMessage(colourise("&cYour chat contains banned words!"));
+        if (profanityFilter.containsSwearWord(playerMessage) && !player.hasPermission("chatenhancer.allowswear")) {
+            player.sendMessage(colourise("&cProfanity is not allowed!"));
             return;
         }
 
@@ -119,7 +122,10 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     @Override
     public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chat-enhancer") && args.length == 1) {
-            return Collections.singletonList("reload");
+            return List.of(
+                    "reload",
+                    "togglemutespy"
+            );
         }
         return new ArrayList<>();
     }
@@ -139,7 +145,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         MiniMessage miniMessage = MiniMessage.miniMessage();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
 
-        return miniMessage.deserialize(ColourTranslator.translateToMiniMessage(template))
+        return miniMessage.deserialize(translateToMiniMessage(template))
                 .replaceText(builder -> builder.matchLiteral("{message}")
                         .replacement(chatColor ? legacyComponentSerializer.deserialize(message) : Component.text(message)))
                 .replaceText(builder -> builder.matchLiteral("{prefix}")

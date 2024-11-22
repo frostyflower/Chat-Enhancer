@@ -1,4 +1,6 @@
 #Author: Frosty_Flower
 
 #Support both Minimessage and ampersand formatting.
+#PlaceholderAPI support.
+#Default placeholders {player}, {message}, {prefix}, {suffix}, {world}.
 chat-format: "<blue><hover:show_text:'{player}'>{player}:</hover></blue> &a{message}"

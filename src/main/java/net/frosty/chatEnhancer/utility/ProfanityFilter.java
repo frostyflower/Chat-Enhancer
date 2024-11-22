@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Set;
 
 @SuppressWarnings({"unchecked", "ResultOfMethodCallIgnored"})
-public class WordChecker {
+public class ProfanityFilter {
     private final Set<String> swearWords = new HashSet<>();
 
-    public WordChecker(JavaPlugin plugin) throws IOException {
+    public ProfanityFilter(JavaPlugin plugin) throws IOException {
         File bannedWordsFile = getOrCreateFile(plugin);
         loadSwearWords(bannedWordsFile);
     }
