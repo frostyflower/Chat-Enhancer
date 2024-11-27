@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Chat-Enhancer.iml" filepath="$PROJECT_DIR$/Chat-Enhancer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ChatEnhancer.iml" filepath="$PROJECT_DIR$/ChatEnhancer.iml" />
     </modules>
   </component>
 </project>

@@ -1,6 +1,23 @@
 #Author: Frosty_Flower
 
-#Support both Minimessage and ampersand formatting.
+#Support both MiniMessage and ampersand formatting.
 #PlaceholderAPI support.
 #Default placeholders {player}, {message}, {prefix}, {suffix}, {world}.
+#This is the default format for all groups.
 chat-format: "<blue><hover:show_text:'{player}'>{player}:</hover></blue> &a{message}"
+
+#This is for per group format.
+groups:
+  - default: "Default {player}: {message}"
+  - admin: "Admin {player}: {message}"
+
+#World options.
+#Only players in the same world as sender can see the message.
+per-world: false
+#Per world must be off to use this otherwise you'll get unexpected behaviour.
+#If player or sender inside these worlds below they will be able to see the message.
+world-group: false
+worlds:
+  - world
+  - world_nether
+  - world_the_end

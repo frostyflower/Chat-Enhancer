@@ -7,8 +7,10 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -33,12 +35,14 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
     private static Chat chat = null;
     private ProfanityFilter profanityFilter;
+    private FileConfiguration config;
 
     private static final Set<Player> muteSpy = new HashSet<>();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        this.config = getConfig();
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
             RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
@@ -71,6 +75,10 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
+        boolean perWorld = config.getBoolean("per-world");
+        boolean worldGroup = config.getBoolean("world-group");
+        List<World> groupedWorlds = getWorldGroup();
+
         if (event.isCancelled() && !player.hasPermission("essentials.mute.except")) {
             for (Player staffPlayer : Bukkit.getOnlinePlayers()) {
                 if (staffPlayer.hasPermission("chatenhancer.mute.see") && muteSpy.contains(staffPlayer)) {
@@ -87,8 +95,17 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             player.sendMessage(colourise("&cProfanity is not allowed!"));
             return;
         }
-        Component finalMessage = formattedMessage(player, playerMessage);
-        Bukkit.getServer().sendMessage(finalMessage);
+        Component finalPlayerMessage = formattedMessage(player, playerMessage);
+        for (Player audience : Bukkit.getOnlinePlayers()) {
+            if (perWorld && audience.getWorld().equals(player.getWorld())) {
+                audience.sendMessage(finalPlayerMessage);
+            } else if (worldGroup && groupedWorlds.contains(audience.getWorld())) {
+                audience.sendMessage(finalPlayerMessage);
+            }
+        }
+
+        String finalConsoleLogger = String.format("%s %s %s: %s", player.getWorld().getName(), chat.getPlayerPrefix(player), player.getName(), playerMessage);
+        Bukkit.getConsoleSender().sendMessage(finalConsoleLogger);
     }
 
     //Commands
@@ -97,6 +114,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("chat-enhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
+                this.config = getConfig();
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
             }
@@ -131,7 +149,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     //Utility.
     private Component formattedMessage(Player player, String message) {
-        String template = getConfig().getString("chat-format");
+        String template = config.getString("chat-format");
         String prefix = chat.getPlayerPrefix(player);
         String suffix = chat.getPlayerSuffix(player);
         String world = player.getWorld().getName();
@@ -158,5 +176,17 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static boolean isOnlyColourCode(String message) {
         String strippedMessage = COLOR_CODE_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
+    }
+
+    private List<World> getWorldGroup() {
+        List<String> worldNames = config.getStringList("worlds");
+        List<World> worlds = new ArrayList<>();
+        for (String worldName : worldNames) {
+            World world = Bukkit.getWorld(worldName);
+            if (world != null) {
+                worlds.add(world);
+            }
+        }
+        return worlds;
     }
 }
