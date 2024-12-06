@@ -1,5 +1,5 @@
 name: ChatEnhancer
-version: '1.0-SNAPSHOT'
+version: '1.1-SNAPSHOT'
 main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
 authors: [ Frosty_Flower ]
@@ -11,8 +11,8 @@ permissions:
   chatenhancer.chatcolour:
     description: "Allow player to chat using colour code."
     default: op
-  chatenhancer.allowswear:
-    description: "Allow player to swear in chat."
+  chatenhancer.bypassfilter:
+    description: "Allow player to bypass the profanity filter in chat."
     default: op
   chatenhancer.admin:
     description: "Staff permission node."
