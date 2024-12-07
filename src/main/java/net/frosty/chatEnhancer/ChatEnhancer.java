@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
+import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -20,24 +21,24 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
 import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToMiniMessage;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
     private static Chat chat = null;
+    private static Permission perms = null;
     private ProfanityFilter profanityFilter;
     private FileConfiguration config;
     private final boolean PAPI = getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
 
     private static final Set<Player> muteSpy = new HashSet<>();
+    private List<String> groupPriority;
+    private Map<String, String> groupColours;
 
     @Override
     public void onEnable() {
@@ -49,12 +50,22 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (rsp != null) {
                 chat = rsp.getProvider();
             }
+            setupPermissions();
         } else {
             getLogger().info("Vault not found. Please install Vault for better experience.");
         }
         if (PAPI) {
             getLogger().info("PlaceholderAPI found.");
         }
+
+        groupColours = new HashMap<>();
+        Map<String, Object> rawColours = Objects.requireNonNull(config.getConfigurationSection("group-colours")).getValues(false);
+        for (Map.Entry<String, Object> entry : rawColours.entrySet()) {
+            if (entry.getValue() instanceof String) {
+                groupColours.put(entry.getKey(), (String) entry.getValue());
+            }
+        }
+        groupPriority = config.getStringList("group-priority");
 
         try {
             profanityFilter = new ProfanityFilter(this);
@@ -68,6 +79,12 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         //Nothing here.
+    }
+
+    private void setupPermissions() {
+        RegisteredServiceProvider<Permission> rsp = getServer().getServicesManager().getRegistration(Permission.class);
+        assert rsp != null;
+        perms = rsp.getProvider();
     }
 
     //Chat event
@@ -111,7 +128,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     //Commands
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String
+            label, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chat-enhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
@@ -138,7 +156,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     @Override
-    public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command
+            command, @NotNull String alias, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chat-enhancer") && args.length == 1) {
             return List.of(
                     "reload",
@@ -154,6 +173,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         String prefix = chat.getPlayerPrefix(player);
         String suffix = chat.getPlayerSuffix(player);
         String world = player.getWorld().getName();
+        String colour = getHighestPriorityColor(player);
 
         assert template != null;
         template = template.replace("{player}", player.getName());
@@ -163,16 +183,42 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         MiniMessage miniMessage = MiniMessage.miniMessage();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
 
-        String replacePlaceholders = translateToMiniMessage(template.replace("{player}", player.getName())
-                .replace("{world}", world).replace("{prefix}", prefix).replace("{suffix}", suffix));
-
-        return miniMessage.deserialize(replacePlaceholders)
+        String finalMessage = colour + message;
+        return miniMessage.deserialize(translateToMiniMessage(template))
+                .replaceText(builder -> builder.matchLiteral("{prefix}")
+                        .replacement(legacyComponentSerializer.deserialize(prefix)))
+                .replaceText(builder -> builder.matchLiteral("{suffix}")
+                        .replacement(legacyComponentSerializer.deserialize(suffix)))
+                .replaceText(builder -> builder.matchLiteral("{world}")
+                        .replacement(world))
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(chatColor ? legacyComponentSerializer.deserialize(message) : Component.text(message)));
+                        .replacement(chatColor ? legacyComponentSerializer.deserialize(finalMessage) : Component.text(finalMessage)));
     }
 
     private static boolean isOnlyColourCode(String message) {
         String strippedMessage = COLOR_CODE_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
+    }
+
+    private String getColor(String group) {
+        return groupColours.getOrDefault(group, "&r");
+    }
+
+    private String getHighestPriorityColor(List<String> userGroups) {
+        for (String group : groupPriority) {
+            if (userGroups.contains(group)) {
+                return getColor(group);
+            }
+        }
+        return "&r";
+    }
+
+    private List<String> getPlayerGroups(Player player) {
+        return Arrays.asList(perms.getPlayerGroups(player));
+    }
+
+    private String getHighestPriorityColor(Player player) {
+        List<String> userGroups = getPlayerGroups(player);
+        return getHighestPriorityColor(userGroups);
     }
 }

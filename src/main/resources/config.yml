@@ -4,7 +4,19 @@
 #PlaceholderAPI support.
 #Default placeholders {player}, {message}, {prefix}, {suffix}, {world}.
 #This is the default format for all groups.
-chat-format: "<blue><hover:show_text:'{player}'>{player}:</hover></blue> &a{message}"
+chat-format: "<hover:show_text:'{prefix}'><gray>[</gray>{prefix}<gray>]</gray></hover><gray> {player}:</gray> {message}"
+
+#Group chat colours.
+group-colours:
+  admin: "&#57ffab"
+  mvp: "&6"
+  vip: "&c"
+  default: "&r"
+group-priority:
+  - admin
+  - mvp
+  - vip
+  - default
 
 #World options.
 #Only players in the same world as sender can see the message.

@@ -1,8 +1,8 @@
 name: ChatEnhancer
-version: '1.1-SNAPSHOT'
+version: ${project.version}
 main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
-authors: [ Frosty_Flower ]
+authors: [ Frosty_Flower, DanTheWman ]
 description: A simple plugin use for customising chat.
 softdepend:
   - Vault
