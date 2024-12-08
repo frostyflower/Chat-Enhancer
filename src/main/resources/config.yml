@@ -11,13 +11,14 @@ group-colours:
   admin: "&#57ffab"
   mvp: "&6"
   vip: "&c"
-  default: "&r"
+  default: ""
 group-priority:
   - admin
   - mvp
   - vip
   - default
 
+#BETA FEATURE.
 #World options.
 #Only players in the same world as sender can see the message.
 per-world: false

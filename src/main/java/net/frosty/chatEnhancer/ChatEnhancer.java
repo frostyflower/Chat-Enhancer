@@ -1,5 +1,7 @@
 package net.frosty.chatEnhancer;
 
+import github.scarsz.discordsrv.DiscordSRV;
+import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.frosty.chatEnhancer.utility.ProfanityFilter;
 import net.kyori.adventure.text.Component;
@@ -11,6 +13,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,6 +23,7 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -30,11 +34,19 @@ import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToMiniMe
 @SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
+    private static final String STRIP_CODE_PATTERN = "(?i)&[0-9A-FK-OR]|§[0-9A-FK-OR]|&#[A-Fa-f0-9]{6}|&#[A-Fa-f0-9]{3}";
+
     private static Chat chat = null;
     private static Permission perms = null;
     private ProfanityFilter profanityFilter;
     private FileConfiguration config;
+
     private final boolean PAPI = getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
+
+    private static boolean discordSRV;
+    private static String srvId;
+    private static String srvGroupMessage;
+    private static String srvNoGroupMessage;
 
     private static final Set<Player> muteSpy = new HashSet<>();
     private List<String> groupPriority;
@@ -56,6 +68,31 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
         if (PAPI) {
             getLogger().info("PlaceholderAPI found.");
+        } else {
+            getLogger().info("Install PlaceholderAPI for placeholder support.");
+        }
+
+        if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
+            discordSRV = true;
+            getLogger().info("DiscordSRV found.");
+        } else {
+            getLogger().info("DiscordSRV not found.");
+        }
+
+        if (discordSRV) {
+            File srvConfigFile = new File(DiscordSRV.getPlugin().getDataFolder(), "config.yml");
+            FileConfiguration srvConfig = YamlConfiguration.loadConfiguration(srvConfigFile);
+
+            File messagesFile = new File(DiscordSRV.getPlugin().getDataFolder(), "messages.yml");
+            FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
+
+            srvId = srvConfig.getString("Channels.global");
+            srvGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormat");
+            srvNoGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormatNoPrimaryGroup");
+            getLogger().info("Channel ID: " + srvId);
+            getLogger().info("Message Format: " + srvGroupMessage);
+            getLogger().info("Message Format No Group: " + srvNoGroupMessage);
+            Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
         }
 
         groupColours = new HashMap<>();
@@ -89,7 +126,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     //Chat event
     @EventHandler(priority = EventPriority.LOW)
-    public void onChat(@NotNull AsyncPlayerChatEvent event) {
+    public void onPlayerChat(@NotNull AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
         boolean perWorld = config.getBoolean("per-world");
@@ -110,7 +147,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             player.sendMessage(colourise("&cProfanity is not allowed!"));
             return;
         }
-        Component finalPlayerMessage = formattedMessage(player, playerMessage);
+        Component finalPlayerMessage = renderredMessage(player, playerMessage);
         if (perWorld) {
             for (Player audiences : Bukkit.getOnlinePlayers()) {
                 if (audiences.getWorld().getName().equals(player.getWorld().getName())) {
@@ -124,6 +161,25 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
 
         Bukkit.getConsoleSender().sendMessage(finalPlayerMessage);
+
+        if (discordSRV) {
+            List<String> playerGroups = getPlayerGroups(player);
+            String playerGroup = playerGroups.isEmpty() ? null : playerGroups.get(0);
+            String discordMessage;
+
+            if (playerGroup == null) {
+                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName()).replace("%message%", playerMessage);
+            } else {
+                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat.getPlayerPrefix(player))).replace("%displayname%", player.getName()).replace("%message%", playerMessage);
+            }
+            discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
+            TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
+            if (channel != null) {
+                channel.sendMessage(discordMessage).queue();
+            } else {
+                throw new RuntimeException("Error! Discord channel not found!");
+            }
+        }
     }
 
     //Commands
@@ -168,7 +224,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     //Utility.
-    private @NotNull Component formattedMessage(Player player, String message) {
+    private @NotNull Component renderredMessage(Player player, String message) {
         String template = config.getString("chat-format");
         String prefix = chat.getPlayerPrefix(player);
         String suffix = chat.getPlayerSuffix(player);
@@ -200,8 +256,12 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         return strippedMessage.trim().isEmpty();
     }
 
+    public static String stripAllColors(String input) {
+        return input.replaceAll(STRIP_CODE_PATTERN, "");
+    }
+
     private String getColor(String group) {
-        return groupColours.getOrDefault(group, "&r");
+        return groupColours.getOrDefault(group, "");
     }
 
     private String getHighestPriorityColor(List<String> userGroups) {
@@ -210,7 +270,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 return getColor(group);
             }
         }
-        return "&r";
+        return "";
     }
 
     private List<String> getPlayerGroups(Player player) {

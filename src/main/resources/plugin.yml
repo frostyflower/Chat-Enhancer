@@ -4,8 +4,10 @@ main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
 authors: [ Frosty_Flower, DanTheWman ]
 description: A simple plugin use for customising chat.
-softdepend:
+depend:
   - Vault
+softdepend:
+  - DiscordSRV
   - PlaceholderAPI
 permissions:
   chatenhancer.chatcolour:
