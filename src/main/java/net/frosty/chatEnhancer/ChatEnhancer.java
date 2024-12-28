@@ -4,7 +4,6 @@ import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.frosty.chatEnhancer.utility.PlayerColourManager;
-import net.frosty.chatEnhancer.utility.ProfanityFilter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -25,7 +24,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 import static net.frosty.chatEnhancer.utility.ColourUtility.*;
@@ -36,7 +34,6 @@ import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 @SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Set<Player> muteSpy = new HashSet<>();
-    private ProfanityFilter profanityFilter;
     private FileConfiguration config;
 
     private static Chat chat = null;
@@ -106,12 +103,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
         }
 
-        try {
-            profanityFilter = new ProfanityFilter(this);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
         getServer().getPluginManager().registerEvents(this, this);
         long duration = System.currentTimeMillis() - startTime;
         Bukkit.getConsoleSender().sendMessage(colourise("&eChatEnhancer enabled in " + duration + "ms."));
@@ -146,10 +137,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
         event.setCancelled(true);
         if (isOnlyColourCode(playerMessage)) {
-            return;
-        }
-        if (profanityFilter.containsSwearWord(playerMessage) && !player.hasPermission("chatenhancer.bypassfilter")) {
-            player.sendMessage(colourise("&cProfanity is not allowed!"));
             return;
         }
         Component finalPlayerMessage = renderredMessage(player, playerMessage);

@@ -14,12 +14,6 @@ group-colours:
   mvp: "&6"
   vip: "&c"
   default: "&r"
-#Unused section.
-#group-priority:
-#  - admin
-#  - mvp
-#  - vip
-#  - default
 
 #BETA FEATURE (may not work).
 #World options.

@@ -2,7 +2,7 @@ name: ChatEnhancer
 version: 1.1-SNAPSHOT
 main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
-authors: [ Frosty_Flower, DanTheWman ]
+authors: [ Frosty_Flower ]
 description: A simple chat utilities plugin.
 depend:
   - Vault
