@@ -3,6 +3,7 @@ package net.frosty.chatEnhancer;
 import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.frosty.chatEnhancer.utility.PlayerColourManager;
 import net.frosty.chatEnhancer.utility.ProfanityFilter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -48,12 +49,16 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static String srvGroupMessage;
     private static String srvNoGroupMessage;
 
+    private static PlayerColourManager playerColourManager;
+
     @Override
     public void onEnable() {
         long startTime = System.currentTimeMillis();
         saveDefaultConfig();
         this.config = getConfig();
 
+        playerColourManager = new PlayerColourManager(this);
+        playerColourManager.initialiseData();
         initialiseGroupColor(this);
 
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
@@ -114,7 +119,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        //Nothing here.
+        playerColourManager.saveData();
+        getLogger().info("ChatEnhancer disabled.");
     }
 
     private void setupPermissions() {
@@ -190,6 +196,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
                 this.config = getConfig();
+                initialiseGroupColor(this);
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
             }
@@ -208,14 +215,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             }
         }
         if (command.getName().equalsIgnoreCase("chatcolour")) {
-            if (args.length == 0) {
-                resetPlayerColour((Player) sender);
-                return true;
+            if (sender instanceof Player) {
+                if (args.length == 0) {
+                    resetPlayerColour((Player) sender);
+                    return true;
+                }
+                if (args.length == 1 && isOnlyColourCode(args[0])) {
+                    setPlayerColour(args[0], (Player) sender);
+                    return true;
+                }
+                return false;
             }
-            if (args.length == 1 && isOnlyColourCode(args[0])) {
-                setPlayerColour(args[0], (Player) sender);
-                return true;
-            }
+            Bukkit.getConsoleSender().sendMessage(colourise("&4This command is for player only."));
+            return true;
         }
         return false;
     }

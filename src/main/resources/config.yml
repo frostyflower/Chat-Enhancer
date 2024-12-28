@@ -2,23 +2,26 @@
 
 #Support both MiniMessage and ampersand formatting.
 #PlaceholderAPI support.
-#Default placeholders {player}, {message}, {prefix}, {suffix}, {world}.
+#Default placeholders {player}, {message}, {prefix}, {suffix} and {world}.
 #This is the default format for all groups.
 chat-format: "<hover:show_text:'{prefix}'><gray>[</gray>{prefix}<gray>]</gray></hover><gray> {player}:</gray> {message}"
 
 #Group chat colours.
+#Do not delete default group.
+#Add more as you wish.
 group-colours:
   admin: "&#57ffab"
   mvp: "&6"
   vip: "&c"
   default: "&r"
-group-priority:
-  - admin
-  - mvp
-  - vip
-  - default
+#Unused section.
+#group-priority:
+#  - admin
+#  - mvp
+#  - vip
+#  - default
 
-#BETA FEATURE.
+#BETA FEATURE (may not work).
 #World options.
 #Only players in the same world as sender can see the message.
 per-world: false
