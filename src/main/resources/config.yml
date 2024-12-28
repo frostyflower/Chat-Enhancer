@@ -11,7 +11,7 @@ group-colours:
   admin: "&#57ffab"
   mvp: "&6"
   vip: "&c"
-  default: ""
+  default: "&r"
 group-priority:
   - admin
   - mvp

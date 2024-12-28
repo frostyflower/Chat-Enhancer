@@ -26,36 +26,36 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.regex.Pattern;
 
-import static net.frosty.chatEnhancer.utility.ColourTranslator.colourise;
-import static net.frosty.chatEnhancer.utility.ColourTranslator.translateToMiniMessage;
+import static net.frosty.chatEnhancer.utility.ColourUtility.*;
+import static net.frosty.chatEnhancer.utility.GroupColourManager.getGroupColour;
+import static net.frosty.chatEnhancer.utility.GroupColourManager.initialiseGroupColor;
+import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 
 @SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
-    private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&[0-9a-fk-or]");
-    private static final String STRIP_CODE_PATTERN = "(?i)&[0-9A-FK-OR]|§[0-9A-FK-OR]|&#[A-Fa-f0-9]{6}|&#[A-Fa-f0-9]{3}";
-
-    private static Chat chat = null;
-    private static Permission perms = null;
+    private static final Set<Player> muteSpy = new HashSet<>();
     private ProfanityFilter profanityFilter;
     private FileConfiguration config;
 
-    private final boolean PAPI = getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
+    private static Chat chat = null;
+    public static Permission perms = null;
+
+    private static boolean PAPI;
 
     private static boolean discordSRV;
     private static String srvId;
     private static String srvGroupMessage;
     private static String srvNoGroupMessage;
 
-    private static final Set<Player> muteSpy = new HashSet<>();
-    private List<String> groupPriority;
-    private Map<String, String> groupColours;
-
     @Override
     public void onEnable() {
+        long startTime = System.currentTimeMillis();
         saveDefaultConfig();
         this.config = getConfig();
+
+        initialiseGroupColor(this);
+
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
             RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
@@ -66,17 +66,25 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         } else {
             getLogger().info("Vault not found. Please install Vault for better experience.");
         }
-        if (PAPI) {
+
+        if (Bukkit.getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
+            getLogger().info("Luckperms found.");
+        } else {
+            getLogger().warning("LuckPerms not found.");
+        }
+
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            PAPI = true;
             getLogger().info("PlaceholderAPI found.");
         } else {
-            getLogger().info("Install PlaceholderAPI for placeholder support.");
+            getLogger().warning("Install PlaceholderAPI for placeholder support.");
         }
 
         if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
             discordSRV = true;
             getLogger().info("DiscordSRV found.");
         } else {
-            getLogger().info("DiscordSRV not found.");
+            getLogger().warning("DiscordSRV not found.");
         }
 
         if (discordSRV) {
@@ -90,19 +98,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             srvGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormat");
             srvNoGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormatNoPrimaryGroup");
             getLogger().info("Channel ID: " + srvId);
-            getLogger().info("Message Format: " + srvGroupMessage);
-            getLogger().info("Message Format No Group: " + srvNoGroupMessage);
             Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
         }
-
-        groupColours = new HashMap<>();
-        Map<String, Object> rawColours = Objects.requireNonNull(config.getConfigurationSection("group-colours")).getValues(false);
-        for (Map.Entry<String, Object> entry : rawColours.entrySet()) {
-            if (entry.getValue() instanceof String) {
-                groupColours.put(entry.getKey(), (String) entry.getValue());
-            }
-        }
-        groupPriority = config.getStringList("group-priority");
 
         try {
             profanityFilter = new ProfanityFilter(this);
@@ -111,6 +108,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
 
         getServer().getPluginManager().registerEvents(this, this);
+        long duration = System.currentTimeMillis() - startTime;
+        Bukkit.getConsoleSender().sendMessage(colourise("&eChatEnhancer enabled in " + duration + "ms."));
     }
 
     @Override
@@ -125,7 +124,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     //Chat event
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerChat(@NotNull AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerMessage = event.getMessage();
@@ -163,14 +162,15 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         Bukkit.getConsoleSender().sendMessage(finalPlayerMessage);
 
         if (discordSRV) {
-            List<String> playerGroups = getPlayerGroups(player);
-            String playerGroup = playerGroups.isEmpty() ? null : playerGroups.get(0);
+            String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
+                    perms.getPrimaryGroup(player);
             String discordMessage;
-
             if (playerGroup == null) {
-                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName()).replace("%message%", playerMessage);
+                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName())
+                        .replace("%message%", playerMessage);
             } else {
-                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat.getPlayerPrefix(player))).replace("%displayname%", player.getName()).replace("%message%", playerMessage);
+                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat != null ? chat.getPlayerPrefix(player) : ""))
+                        .replace("%displayname%", player.getName()).replace("%message%", playerMessage);
             }
             discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
             TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
@@ -186,7 +186,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String
             label, @NotNull String[] args) {
-        if (command.getName().equalsIgnoreCase("chat-enhancer")) {
+        if (command.getName().equalsIgnoreCase("chatenhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
                 this.config = getConfig();
@@ -206,7 +206,16 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 Bukkit.getConsoleSender().sendMessage(colourise("&4This command is for player only."));
                 return true;
             }
-            return false;
+        }
+        if (command.getName().equalsIgnoreCase("chatcolour")) {
+            if (args.length == 0) {
+                resetPlayerColour((Player) sender);
+                return true;
+            }
+            if (args.length == 1 && isOnlyColourCode(args[0])) {
+                setPlayerColour(args[0], (Player) sender);
+                return true;
+            }
         }
         return false;
     }
@@ -214,71 +223,59 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     @Override
     public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command
             command, @NotNull String alias, @NotNull String[] args) {
-        if (command.getName().equalsIgnoreCase("chat-enhancer") && args.length == 1) {
+        if (command.getName().equalsIgnoreCase("chatenhancer") && args.length == 1) {
             return List.of(
                     "reload",
                     "togglemutespy"
             );
+        }
+        if (command.getName().equalsIgnoreCase("chatcolour") && args.length == 1) {
+            List<String> colourList = new ArrayList<>();
+            for (int i = 0; i<=9; i++) {
+                colourList.add("&" + i);
+            }
+            for (char c = 'a'; c <= 'f'; c++) {
+                colourList.add("&" + c);
+            }
+            for (char s = 'k'; s <= 'o'; s++) {
+                colourList.add("&"+s);
+            }
+            colourList.add("&r");
+            Collections.sort(colourList);
+            return colourList;
         }
         return new ArrayList<>();
     }
 
     //Utility.
     private @NotNull Component renderredMessage(Player player, String message) {
+
         String template = config.getString("chat-format");
-        String prefix = chat.getPlayerPrefix(player);
-        String suffix = chat.getPlayerSuffix(player);
+        String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
+        String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         String world = player.getWorld().getName();
-        String colour = getHighestPriorityColor(player);
+        String groupColour = getGroupColour(player);
 
-        assert template != null;
-        template = template.replace("{player}", player.getName());
-        template = PAPI ? PlaceholderAPI.setPlaceholders(player, template) : template;
-
-        LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         MiniMessage miniMessage = MiniMessage.miniMessage();
+        LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
 
-        String finalMessage = colour + message;
-        return miniMessage.deserialize(translateToMiniMessage(template))
+        String playerColour = getPlayerColour(player);
+        Component groupChatColour = legacyComponentSerializer.deserialize(groupColour +
+                (chatColor ? message : stripAllColors(message)));
+        Component finalColourMessage = playerColour.isEmpty() ? groupChatColour :
+                legacyComponentSerializer.deserialize(playerColour + (chatColor ? message :
+                        stripAllColors(message)));
+        return miniMessage.deserialize(ampersandToMiniMessage(template))
+                .replaceText(builder -> builder.matchLiteral("{player}")
+                        .replacement(player.getName()))
                 .replaceText(builder -> builder.matchLiteral("{prefix}")
                         .replacement(legacyComponentSerializer.deserialize(prefix)))
                 .replaceText(builder -> builder.matchLiteral("{suffix}")
                         .replacement(legacyComponentSerializer.deserialize(suffix)))
                 .replaceText(builder -> builder.matchLiteral("{world}")
-                        .replacement(world))
+                        .replacement(legacyComponentSerializer.deserialize(world)))
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(chatColor ? legacyComponentSerializer.deserialize(finalMessage) : Component.text(finalMessage)));
-    }
-
-    private static boolean isOnlyColourCode(String message) {
-        String strippedMessage = COLOR_CODE_PATTERN.matcher(message).replaceAll("");
-        return strippedMessage.trim().isEmpty();
-    }
-
-    public static String stripAllColors(String input) {
-        return input.replaceAll(STRIP_CODE_PATTERN, "");
-    }
-
-    private String getColor(String group) {
-        return groupColours.getOrDefault(group, "");
-    }
-
-    private String getHighestPriorityColor(List<String> userGroups) {
-        for (String group : groupPriority) {
-            if (userGroups.contains(group)) {
-                return getColor(group);
-            }
-        }
-        return "";
-    }
-
-    private List<String> getPlayerGroups(Player player) {
-        return Arrays.asList(perms.getPlayerGroups(player));
-    }
-
-    private String getHighestPriorityColor(Player player) {
-        List<String> userGroups = getPlayerGroups(player);
-        return getHighestPriorityColor(userGroups);
+                        .replacement(finalColourMessage));
     }
 }

@@ -1,9 +1,9 @@
 name: ChatEnhancer
-version: ${project.version}
+version: 1.1-SNAPSHOT
 main: net.frosty.chatEnhancer.ChatEnhancer
 api-version: '1.18'
 authors: [ Frosty_Flower, DanTheWman ]
-description: A simple plugin use for customising chat.
+description: A simple chat utilities plugin.
 depend:
   - Vault
 softdepend:
@@ -20,11 +20,19 @@ permissions:
     description: "Staff permission node."
     default: op
 commands:
-  chat-enhancer:
+  chatenhancer:
     aliases:
       - ce
     description: "Admin commands for chat enhancer."
     usage: "§cError: §4Invalid usage."
     permission: "chatenhancer.admin"
+    permission-message: "§cError: §4You don't have the right to use this command."
+    default: op
+  chatcolour:
+    aliases:
+      - cc
+    description: "Set custom chat colour."
+    usage: "§cError: §4Invalid usage."
+    permission: "chatenhancer.playerchatcolour"
     permission-message: "§cError: §4You don't have the right to use this command."
     default: op
