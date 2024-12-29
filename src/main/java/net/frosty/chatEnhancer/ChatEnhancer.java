@@ -24,7 +24,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourUtility.*;
 import static net.frosty.chatEnhancer.utility.GroupColourManager.getGroupColour;
@@ -33,6 +37,8 @@ import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 
 @SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
+    private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
+    private static final String CLIPBOARD_REPLACEMENT = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
     private FileConfiguration config;
 
     private static Chat chat = null;
@@ -254,6 +260,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         String world = player.getWorld().getName();
         String groupColour = getGroupColour(player);
+
         MiniMessage miniMessage = MiniMessage.miniMessage();
         LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
@@ -273,6 +280,14 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 .replaceText(builder -> builder.matchLiteral("{suffix}")
                         .replacement(legacyComponentSerializer.deserialize(suffix)))
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(finalColourMessage));
+                        .replacement(finalColourMessage.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
+                                .replacement(((matchResult, input) -> {
+                                    String clipboard = matchResult.group(1);
+                                    if (clipboard.isEmpty()) {
+                                        return Component.text("<>");
+                                    }
+                                    String replacement = CLIPBOARD_REPLACEMENT.replace("$1", clipboard);
+                                    return miniMessage.deserialize(replacement);
+                                })))));
     }
 }
