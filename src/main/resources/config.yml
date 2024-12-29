@@ -15,7 +15,16 @@ group-colours:
   vip: "&c"
   default: "&r"
 
-#BETA FEATURE (may not work).
+#Group chat formats. [Not implemented yet]
+#Same placeholder as in default format.
+#group-formats:
+#  admin: "&7[&cAdmin&7] {player}: {message}"
+
+#BETA FEATURE.
 #World options.
 #Only players in the same world as sender can see the message.
 per-world: false
+
+#Chat options.
+#Allow player to use text inside angled bracket "<Example>" and it will parse as a copyable text.
+chat-clipboard: true

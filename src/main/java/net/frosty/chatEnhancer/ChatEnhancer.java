@@ -40,6 +40,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
     private static final String CLIPBOARD_REPLACEMENT = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
     private FileConfiguration config;
+    private static final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private static final LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
 
     private static Chat chat = null;
     public static Permission perms = null;
@@ -256,13 +258,12 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     private @NotNull Component renderredMessage(Player player, String message) {
         String template = config.getString("chat-format");
+        boolean chatClipboard = config.getBoolean("chat-clipboard");
         String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
         String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         String world = player.getWorld().getName();
         String groupColour = getGroupColour(player);
 
-        MiniMessage miniMessage = MiniMessage.miniMessage();
-        LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
         String playerColour = getPlayerColour(player);
         template = Objects.requireNonNull(template)
@@ -280,7 +281,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 .replaceText(builder -> builder.matchLiteral("{suffix}")
                         .replacement(legacyComponentSerializer.deserialize(suffix)))
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(finalColourMessage.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
+                        .replacement(chatClipboard ? finalColourMessage.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
                                 .replacement(((matchResult, input) -> {
                                     String clipboard = matchResult.group(1);
                                     if (clipboard.isEmpty()) {
@@ -288,6 +289,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                                     }
                                     String replacement = CLIPBOARD_REPLACEMENT.replace("$1", clipboard);
                                     return miniMessage.deserialize(replacement);
-                                })))));
+                                }))) : finalColourMessage));
     }
 }
