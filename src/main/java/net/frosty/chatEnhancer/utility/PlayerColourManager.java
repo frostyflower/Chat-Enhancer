@@ -15,6 +15,7 @@ public class PlayerColourManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private final transient JavaPlugin plugin;
     private static Map<String, String> playerColour;
+    private static final String DATA_FOLDER = "_data";
     private static final String SAVE_FILE = "player_colour";
 
     public PlayerColourManager(JavaPlugin plugin) {
@@ -23,7 +24,7 @@ public class PlayerColourManager implements Serializable {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public void initialiseData() {
-        File dataFolder = new File(plugin.getDataFolder(), "_data");
+        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
         if (!dataFolder.exists()) {
             dataFolder.mkdirs();
         }
@@ -39,7 +40,7 @@ public class PlayerColourManager implements Serializable {
 
     @SuppressWarnings("unchecked")
     private void loadData() {
-        File dataFolder = new File(plugin.getDataFolder(), "_data");
+        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
         File serFile = new File(dataFolder, SAVE_FILE + ".ser");
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(serFile))) {
@@ -52,7 +53,7 @@ public class PlayerColourManager implements Serializable {
     }
 
     public void saveData() {
-        File dataFolder = new File(plugin.getDataFolder(), "_data");
+        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
         File serFile = new File(dataFolder, SAVE_FILE + ".ser");
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(serFile))) {

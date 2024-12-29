@@ -33,15 +33,15 @@ import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 
 @SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
-    private static final Set<Player> muteSpy = new HashSet<>();
     private FileConfiguration config;
 
     private static Chat chat = null;
     public static Permission perms = null;
 
-    private static boolean PAPI;
+    private static boolean PAPI = false;
+    private static boolean SKRIPT = false;
 
-    private static boolean discordSRV;
+    private static boolean discordSRV = false;
     private static String srvId;
     private static String srvGroupMessage;
     private static String srvNoGroupMessage;
@@ -80,6 +80,10 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             getLogger().info("PlaceholderAPI found.");
         } else {
             getLogger().warning("Install PlaceholderAPI for placeholder support.");
+        }
+
+        if (Bukkit.getServer().getPluginManager().isPluginEnabled("Skript")) {
+            SKRIPT = true;
         }
 
         if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
@@ -121,58 +125,29 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     //Chat event
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(@NotNull AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        String playerMessage = event.getMessage();
-        boolean perWorld = config.getBoolean("per-world");
-
-        if (event.isCancelled() && !player.hasPermission("essentials.mute.except")) {
-            for (Player staffPlayer : Bukkit.getOnlinePlayers()) {
-                if (staffPlayer.hasPermission("chatenhancer.mute.see") && muteSpy.contains(staffPlayer)) {
-                    staffPlayer.sendMessage(colourise(String.format("&8%s tried to speak: %s", player.getName(), playerMessage)));
-                }
+        String message = event.getMessage();
+        if (event.isCancelled() && SKRIPT) {
+            return;
+        }
+        if (event.isCancelled() && !player.isOp() && !player.hasPermission
+                ("essentials.mute.except")) {
+            return;
+        } else if (player.hasPermission("essentials.mute.except")) {
+            event.setCancelled(true);
+            if (isOnlyColourCode(message)) {
+                return;
             }
+            serverMessenger(player, message);
             return;
         }
         event.setCancelled(true);
-        if (isOnlyColourCode(playerMessage)) {
+        if (isOnlyColourCode(message)) {
             return;
         }
-        Component finalPlayerMessage = renderredMessage(player, playerMessage);
-        if (perWorld) {
-            for (Player audiences : Bukkit.getOnlinePlayers()) {
-                if (audiences.getWorld().getName().equals(player.getWorld().getName())) {
-                    audiences.sendMessage(finalPlayerMessage);
-                }
-            }
-        } else {
-            for (Player audiences : Bukkit.getOnlinePlayers()) {
-                audiences.sendMessage(finalPlayerMessage);
-            }
-        }
-
-        Bukkit.getConsoleSender().sendMessage(finalPlayerMessage);
-
-        if (discordSRV) {
-            String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
-                    perms.getPrimaryGroup(player);
-            String discordMessage;
-            if (playerGroup == null) {
-                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName())
-                        .replace("%message%", playerMessage);
-            } else {
-                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat != null ? chat.getPlayerPrefix(player) : ""))
-                        .replace("%displayname%", player.getName()).replace("%message%", playerMessage);
-            }
-            discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
-            TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
-            if (channel != null) {
-                channel.sendMessage(discordMessage).queue();
-            } else {
-                throw new RuntimeException("Error! Discord channel not found!");
-            }
-        }
+        serverMessenger(player, message);
     }
 
     //Commands
@@ -185,19 +160,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 this.config = getConfig();
                 initialiseGroupColor(this);
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
-                return true;
-            }
-            if (args.length == 1 && args[0].equalsIgnoreCase("togglemutespy")) {
-                if (sender instanceof Player) {
-                    if (muteSpy.add((Player) sender)) {
-                        sender.sendMessage(colourise("&6Toggled mute spy to on."));
-                    } else {
-                        muteSpy.remove((Player) sender);
-                        sender.sendMessage(colourise("&6Toggle mute spy to off."));
-                    }
-                    return true;
-                }
-                Bukkit.getConsoleSender().sendMessage(colourise("&4This command is for player only."));
                 return true;
             }
         }
@@ -224,20 +186,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             command, @NotNull String alias, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chatenhancer") && args.length == 1) {
             return List.of(
-                    "reload",
-                    "togglemutespy"
+                    "reload"
             );
         }
         if (command.getName().equalsIgnoreCase("chatcolour") && args.length == 1) {
             List<String> colourList = new ArrayList<>();
-            for (int i = 0; i<=9; i++) {
+            for (int i = 0; i <= 9; i++) {
                 colourList.add("&" + i);
             }
             for (char c = 'a'; c <= 'f'; c++) {
                 colourList.add("&" + c);
             }
             for (char s = 'k'; s <= 'o'; s++) {
-                colourList.add("&"+s);
+                colourList.add("&" + s);
             }
             colourList.add("&r");
             Collections.sort(colourList);
@@ -247,33 +208,70 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     //Utility.
-    private @NotNull Component renderredMessage(Player player, String message) {
+    private void serverMessenger(Player player, String message) {
+        Component finalPlayerMessage = renderredMessage(player, message);
+        boolean perWorld = config.getBoolean("per-world");
+        if (perWorld) {
+            for (Player audiences : Bukkit.getOnlinePlayers()) {
+                if (audiences.getWorld().getName().equals(player.getWorld().getName())) {
+                    audiences.sendMessage(finalPlayerMessage);
+                }
+            }
+        } else {
+            for (Player audiences : Bukkit.getOnlinePlayers()) {
+                audiences.sendMessage(finalPlayerMessage);
+            }
+        }
+        Bukkit.getConsoleSender().sendMessage(finalPlayerMessage);
+        discordMessenger(player, message);
+    }
 
+    private void discordMessenger(Player player, String message) {
+        if (discordSRV) {
+            String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
+                    perms.getPrimaryGroup(player);
+            String discordMessage;
+            if (playerGroup == null) {
+                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName())
+                        .replace("%message%", message);
+            } else {
+                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat != null ? chat.getPlayerPrefix(player) : ""))
+                        .replace("%displayname%", player.getName()).replace("%message%", message);
+            }
+            discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
+            TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
+            if (channel != null) {
+                channel.sendMessage(discordMessage).queue();
+            } else {
+                throw new RuntimeException("Error! Discord channel not found!");
+            }
+        }
+    }
+
+    private @NotNull Component renderredMessage(Player player, String message) {
         String template = config.getString("chat-format");
         String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
         String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         String world = player.getWorld().getName();
         String groupColour = getGroupColour(player);
-
         MiniMessage miniMessage = MiniMessage.miniMessage();
         LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
-
         String playerColour = getPlayerColour(player);
-        Component groupChatColour = legacyComponentSerializer.deserialize(groupColour +
-                (chatColor ? message : stripAllColors(message)));
+        template = Objects.requireNonNull(template)
+                .replace("{player}", player.getName())
+                .replace("{world}", world);
+        template = PAPI ? PlaceholderAPI.setPlaceholders(player, template) : template;
+        Component groupChatColour = legacyComponentSerializer
+                .deserialize(groupColour + (chatColor ? message : stripAllColors(message)));
         Component finalColourMessage = playerColour.isEmpty() ? groupChatColour :
                 legacyComponentSerializer.deserialize(playerColour + (chatColor ? message :
                         stripAllColors(message)));
         return miniMessage.deserialize(ampersandToMiniMessage(template))
-                .replaceText(builder -> builder.matchLiteral("{player}")
-                        .replacement(player.getName()))
                 .replaceText(builder -> builder.matchLiteral("{prefix}")
                         .replacement(legacyComponentSerializer.deserialize(prefix)))
                 .replaceText(builder -> builder.matchLiteral("{suffix}")
                         .replacement(legacyComponentSerializer.deserialize(suffix)))
-                .replaceText(builder -> builder.matchLiteral("{world}")
-                        .replacement(legacyComponentSerializer.deserialize(world)))
                 .replaceText(builder -> builder.matchLiteral("{message}")
                         .replacement(finalColourMessage));
     }
