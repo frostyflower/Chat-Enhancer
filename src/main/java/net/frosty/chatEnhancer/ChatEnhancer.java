@@ -15,7 +15,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -39,11 +38,12 @@ import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
     private static final String CLIPBOARD_REPLACEMENT = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
-    private FileConfiguration config;
+    private static FileConfiguration config;
+    private static EventPriority CHAT_PRIORITY;
     private static final MiniMessage miniMessage = MiniMessage.miniMessage();
     private static final LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
 
-    private static Chat chat = null;
+    public static Chat chat = null;
     public static Permission perms = null;
 
     private static boolean PAPI = false;
@@ -60,7 +60,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     public void onEnable() {
         long startTime = System.currentTimeMillis();
         saveDefaultConfig();
-        this.config = getConfig();
+        config = getConfig();
+
+        String chatPriority = config.getString("chat-event-priority");
+        if (chatPriority != null) {
+            try {
+                CHAT_PRIORITY = EventPriority.valueOf(chatPriority.toUpperCase());
+                getLogger().info("Chat event priority set to: " + CHAT_PRIORITY);
+            } catch (IllegalArgumentException e) {
+                getLogger().warning("Invalid chat event priority: " + chatPriority);
+                CHAT_PRIORITY = EventPriority.HIGH;
+                getLogger().warning("Defaulting to: " + CHAT_PRIORITY);
+            }
+        }
 
         playerColourManager = new PlayerColourManager(this);
         playerColourManager.initialiseData();
@@ -115,7 +127,17 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
         }
 
-        getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvent(
+                AsyncPlayerChatEvent.class,
+                this,
+                CHAT_PRIORITY,
+                (listener, event) -> {
+                    if (event instanceof AsyncPlayerChatEvent) {
+                        onPlayerChat((AsyncPlayerChatEvent) event);
+                    }
+                },
+                this
+        );
         long duration = System.currentTimeMillis() - startTime;
         Bukkit.getConsoleSender().sendMessage(colourise("&eChatEnhancer enabled in " + duration + "ms."));
     }
@@ -133,7 +155,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     //Chat event
-    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(@NotNull AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String message = event.getMessage();
@@ -165,7 +186,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         if (command.getName().equalsIgnoreCase("chatenhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
-                this.config = getConfig();
+                config = getConfig();
                 initialiseGroupColor(this);
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
@@ -259,6 +280,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private @NotNull Component renderredMessage(Player player, String message) {
         String template = config.getString("chat-format");
         boolean chatClipboard = config.getBoolean("chat-clipboard");
+        String playerName = player.getName();
         String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
         String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         String world = player.getWorld().getName();
@@ -267,21 +289,22 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
         String playerColour = getPlayerColour(player);
         template = Objects.requireNonNull(template)
-                .replace("{player}", player.getName())
+                .replaceAll("\\{player}(?![^<]*>)", playerName)
+                .replaceAll("\\{world}(?![^<]*>)", world);
+        template = template.replace("{player}", playerName)
+                .replace("{prefix}", prefix).replace("{suffix}", suffix)
                 .replace("{world}", world);
         template = PAPI ? PlaceholderAPI.setPlaceholders(player, template) : template;
+        template = ampersandToMiniMessage(template);
+        template = hexToMiniMessage(template);
         Component groupChatColour = legacyComponentSerializer
                 .deserialize(groupColour + (chatColor ? message : stripAllColors(message)));
-        Component finalColourMessage = playerColour.isEmpty() ? groupChatColour :
+        Component finalColourProcess = playerColour.isEmpty() ? groupChatColour :
                 legacyComponentSerializer.deserialize(playerColour + (chatColor ? message :
                         stripAllColors(message)));
-        return miniMessage.deserialize(ampersandToMiniMessage(template))
-                .replaceText(builder -> builder.matchLiteral("{prefix}")
-                        .replacement(legacyComponentSerializer.deserialize(prefix)))
-                .replaceText(builder -> builder.matchLiteral("{suffix}")
-                        .replacement(legacyComponentSerializer.deserialize(suffix)))
+        return miniMessage.deserialize(template)
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(chatClipboard ? finalColourMessage.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
+                        .replacement(chatClipboard ? finalColourProcess.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
                                 .replacement(((matchResult, input) -> {
                                     String clipboard = matchResult.group(1);
                                     if (clipboard.isEmpty()) {
@@ -289,6 +312,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                                     }
                                     String replacement = CLIPBOARD_REPLACEMENT.replace("$1", clipboard);
                                     return miniMessage.deserialize(replacement);
-                                }))) : finalColourMessage));
+                                }))) : finalColourProcess));
     }
 }
