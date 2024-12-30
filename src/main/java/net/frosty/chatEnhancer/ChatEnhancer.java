@@ -2,22 +2,28 @@ package net.frosty.chatEnhancer;
 
 import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
+import io.papermc.paper.chat.ChatRenderer;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.frosty.chatEnhancer.utility.PlayerColourManager;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -34,20 +40,18 @@ import static net.frosty.chatEnhancer.utility.GroupColourManager.getGroupColour;
 import static net.frosty.chatEnhancer.utility.GroupColourManager.initialiseGroupColor;
 import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
 
-@SuppressWarnings({"deprecation"})
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
     private static final String CLIPBOARD_REPLACEMENT = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
     private static FileConfiguration config;
-    private static EventPriority CHAT_PRIORITY;
     private static final MiniMessage miniMessage = MiniMessage.miniMessage();
     private static final LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
+    private static final PlainTextComponentSerializer plainTextComponentSerializer = PlainTextComponentSerializer.plainText();
 
     public static Chat chat = null;
     public static Permission perms = null;
 
     private static boolean PAPI = false;
-    private static boolean SKRIPT = false;
 
     private static boolean discordSRV = false;
     private static String srvId;
@@ -58,21 +62,9 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        long startTime = System.currentTimeMillis();
+        final long startTime = System.currentTimeMillis();
         saveDefaultConfig();
         config = getConfig();
-
-        String chatPriority = config.getString("chat-event-priority");
-        if (chatPriority != null) {
-            try {
-                CHAT_PRIORITY = EventPriority.valueOf(chatPriority.toUpperCase());
-                getLogger().info("Chat event priority set to: " + CHAT_PRIORITY);
-            } catch (IllegalArgumentException e) {
-                getLogger().warning("Invalid chat event priority: " + chatPriority);
-                CHAT_PRIORITY = EventPriority.HIGH;
-                getLogger().warning("Defaulting to: " + CHAT_PRIORITY);
-            }
-        }
 
         playerColourManager = new PlayerColourManager(this);
         playerColourManager.initialiseData();
@@ -80,7 +72,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
-            RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
+            final RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
             if (rsp != null) {
                 chat = rsp.getProvider();
             }
@@ -103,7 +95,12 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
 
         if (Bukkit.getServer().getPluginManager().isPluginEnabled("Skript")) {
-            SKRIPT = true;
+            if (Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("MONITOR")
+            ||  Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("HIGHEST")) {
+                getLogger().warning("Skript detected. Setting event priority to highest.");
+                config.set("chat-event-priority", "HIGHEST");
+                saveConfig();
+            }
         }
 
         if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
@@ -114,11 +111,11 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
 
         if (discordSRV) {
-            File srvConfigFile = new File(DiscordSRV.getPlugin().getDataFolder(), "config.yml");
-            FileConfiguration srvConfig = YamlConfiguration.loadConfiguration(srvConfigFile);
+            final File srvConfigFile = new File(DiscordSRV.getPlugin().getDataFolder(), "config.yml");
+            final FileConfiguration srvConfig = YamlConfiguration.loadConfiguration(srvConfigFile);
 
-            File messagesFile = new File(DiscordSRV.getPlugin().getDataFolder(), "messages.yml");
-            FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
+            final File messagesFile = new File(DiscordSRV.getPlugin().getDataFolder(), "messages.yml");
+            final FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
 
             srvId = srvConfig.getString("Channels.global");
             srvGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormat");
@@ -127,18 +124,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
         }
 
-        getServer().getPluginManager().registerEvent(
-                AsyncPlayerChatEvent.class,
-                this,
-                CHAT_PRIORITY,
-                (listener, event) -> {
-                    if (event instanceof AsyncPlayerChatEvent) {
-                        onPlayerChat((AsyncPlayerChatEvent) event);
-                    }
-                },
-                this
-        );
-        long duration = System.currentTimeMillis() - startTime;
+        getServer().getPluginManager().registerEvents(this, this);
+//        getServer().getPluginManager().registerEvent(
+//                AsyncPlayerChatEvent.class,
+//                this,
+//                CHAT_PRIORITY,
+//                (listener, event) -> {
+//                    if (event instanceof AsyncPlayerChatEvent) {
+//                        onPlayerChat((AsyncPlayerChatEvent) event);
+//                    }
+//                },
+//                this
+//        );
+        final long duration = System.currentTimeMillis() - startTime;
         Bukkit.getConsoleSender().sendMessage(colourise("&eChatEnhancer enabled in " + duration + "ms."));
     }
 
@@ -154,35 +152,9 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         perms = rsp.getProvider();
     }
 
-    //Chat event
-    public void onPlayerChat(@NotNull AsyncPlayerChatEvent event) {
-        Player player = event.getPlayer();
-        String message = event.getMessage();
-        if (event.isCancelled() && SKRIPT) {
-            return;
-        }
-        if (event.isCancelled() && !player.isOp() && !player.hasPermission
-                ("essentials.mute.except")) {
-            return;
-        } else if (player.hasPermission("essentials.mute.except")) {
-            event.setCancelled(true);
-            if (isOnlyColourCode(message)) {
-                return;
-            }
-            serverMessenger(player, message);
-            return;
-        }
-        event.setCancelled(true);
-        if (isOnlyColourCode(message)) {
-            return;
-        }
-        serverMessenger(player, message);
-    }
-
     //Commands
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String
-            label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chatenhancer")) {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
@@ -211,8 +183,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     @Override
-    public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command
-            command, @NotNull String alias, @NotNull String[] args) {
+    public @NotNull List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (command.getName().equalsIgnoreCase("chatenhancer") && args.length == 1) {
             return List.of(
                     "reload"
@@ -236,28 +207,32 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         return new ArrayList<>();
     }
 
-    //Utility.
-    private void serverMessenger(Player player, String message) {
-        Component finalPlayerMessage = renderredMessage(player, message);
-        boolean perWorld = config.getBoolean("per-world");
-        if (perWorld) {
-            for (Player audiences : Bukkit.getOnlinePlayers()) {
-                if (audiences.getWorld().getName().equals(player.getWorld().getName())) {
-                    audiences.sendMessage(finalPlayerMessage);
-                }
+    //Chat event
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onPlayerChat(AsyncChatEvent event) {
+        final Player sender = event.getPlayer();
+        final boolean perWorld = config.getBoolean("per-world");
+        final World playerWorld = sender.getWorld();
+        event.viewers().removeIf(audience -> {
+            if (perWorld && audience instanceof Player player) {
+                return !player.getWorld().equals(playerWorld);
             }
-        } else {
-            for (Player audiences : Bukkit.getOnlinePlayers()) {
-                audiences.sendMessage(finalPlayerMessage);
+            return false;
+        });
+        event.renderer(new ChatRenderer() {
+            @Override
+            public @NotNull Component render(@NotNull Player player, @NotNull Component displayName, @NotNull Component message, @NotNull Audience audience) {
+                final String messageText = plainTextComponentSerializer.serialize(message);
+                discordMessenger(sender, messageText);
+                return Component.text().append(renderedMessage(player, messageText)).build();
             }
-        }
-        Bukkit.getConsoleSender().sendMessage(finalPlayerMessage);
-        discordMessenger(player, message);
+        });
     }
 
+    //Utility.
     private void discordMessenger(Player player, String message) {
         if (discordSRV) {
-            String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
+            final String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
                     perms.getPrimaryGroup(player);
             String discordMessage;
             if (playerGroup == null) {
@@ -268,7 +243,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                         .replace("%displayname%", player.getName()).replace("%message%", message);
             }
             discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
-            TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
+            final TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
             if (channel != null) {
                 channel.sendMessage(discordMessage).queue();
             } else {
@@ -277,17 +252,17 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         }
     }
 
-    private @NotNull Component renderredMessage(Player player, String message) {
+    private @NotNull Component renderedMessage(@NotNull Player player, @NotNull String message) {
         String template = config.getString("chat-format");
-        boolean chatClipboard = config.getBoolean("chat-clipboard");
-        String playerName = player.getName();
-        String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
-        String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
-        String world = player.getWorld().getName();
-        String groupColour = getGroupColour(player);
+        final boolean chatClipboard = config.getBoolean("chat-clipboard");
+        final String playerName = player.getName();
+        final String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
+        final String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
+        final String world = player.getWorld().getName();
+        final String groupColour = getGroupColour(player);
 
-        boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
-        String playerColour = getPlayerColour(player);
+        final boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
+        final String playerColour = getPlayerColour(player);
         template = Objects.requireNonNull(template)
                 .replaceAll("\\{player}(?![^<]*>)", playerName)
                 .replaceAll("\\{world}(?![^<]*>)", world);
@@ -297,21 +272,31 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         template = PAPI ? PlaceholderAPI.setPlaceholders(player, template) : template;
         template = ampersandToMiniMessage(template);
         template = hexToMiniMessage(template);
-        Component groupChatColour = legacyComponentSerializer
+        final Component groupChatColour = legacyComponentSerializer
                 .deserialize(groupColour + (chatColor ? message : stripAllColors(message)));
-        Component finalColourProcess = playerColour.isEmpty() ? groupChatColour :
+        final Component finalColourProcess = playerColour.isEmpty() ? groupChatColour :
                 legacyComponentSerializer.deserialize(playerColour + (chatColor ? message :
                         stripAllColors(message)));
         return miniMessage.deserialize(template)
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(chatClipboard ? finalColourProcess.replaceText(builder1 -> builder1.match(CLIPBOARD_PATTERN)
+                        .replacement(chatClipboard ? finalColourProcess
+                                .replaceText(clipboardMessage -> clipboardMessage.match(CLIPBOARD_PATTERN)
                                 .replacement(((matchResult, input) -> {
-                                    String clipboard = matchResult.group(1);
+                                    final String clipboard = matchResult.group(1);
                                     if (clipboard.isEmpty()) {
                                         return Component.text("<>");
                                     }
                                     String replacement = CLIPBOARD_REPLACEMENT.replace("$1", clipboard);
                                     return miniMessage.deserialize(replacement);
-                                }))) : finalColourProcess));
+                                }))) : finalColourProcess))
+                .replaceText(builder -> builder.match("\\[(i|item)\\]")
+                        .replacement(player.getInventory().getItemInMainHand().displayName()
+                                .append(player.getInventory().getItemInMainHand().getAmount() > 1
+                                        ? Component.text(" x" + player.getInventory().getItemInMainHand().getAmount(), NamedTextColor.GRAY)
+                                        : Component.empty()
+                                )
+                                .hoverEvent(player.getInventory().getItemInMainHand().asHoverEvent())
+                        )
+                );
     }
 }

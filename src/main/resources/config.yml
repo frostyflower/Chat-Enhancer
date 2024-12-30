@@ -28,12 +28,3 @@ per-world: false
 #Chat options.
 #Allow player to use text inside angled bracket "<Example>" and it will parse as a copyable text.
 chat-clipboard: true
-
-#Advanced options.
-#You can set the chat event priority here.
-#Options: MONITOR, HIGHEST, HIGH, NORMAL, LOW, LOWEST.
-#If you have Skript installed I recommend you to use HIGHEST.
-#If you don't have Skript installed I recommend you to use HIGH.
-#If you don't know what this is, don't change it.
-#REQUIRE RESTART.
-chat-event-priority: HIGH

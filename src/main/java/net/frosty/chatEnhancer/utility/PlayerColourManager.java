@@ -3,6 +3,7 @@ package net.frosty.chatEnhancer.utility;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.util.HashMap;
@@ -24,11 +25,11 @@ public class PlayerColourManager implements Serializable {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public void initialiseData() {
-        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
+        final File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
         if (!dataFolder.exists()) {
             dataFolder.mkdirs();
         }
-        File serFile = new File(dataFolder, SAVE_FILE + ".ser");
+        final File serFile = new File(dataFolder, SAVE_FILE + ".ser");
         if (serFile.exists()) {
             loadData();
         } else {
@@ -40,8 +41,8 @@ public class PlayerColourManager implements Serializable {
 
     @SuppressWarnings("unchecked")
     private void loadData() {
-        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
-        File serFile = new File(dataFolder, SAVE_FILE + ".ser");
+        final File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
+        final File serFile = new File(dataFolder, SAVE_FILE + ".ser");
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(serFile))) {
             playerColour = (Map<String, String>) ois.readObject();
@@ -53,8 +54,8 @@ public class PlayerColourManager implements Serializable {
     }
 
     public void saveData() {
-        File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
-        File serFile = new File(dataFolder, SAVE_FILE + ".ser");
+        final File dataFolder = new File(plugin.getDataFolder(), DATA_FOLDER);
+        final File serFile = new File(dataFolder, SAVE_FILE + ".ser");
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(serFile))) {
             oos.writeObject(playerColour);
@@ -65,12 +66,12 @@ public class PlayerColourManager implements Serializable {
         }
     }
 
-    public static void setPlayerColour(String colour, Player player) {
+    public static void setPlayerColour(@NotNull String colour, @NotNull Player player) {
         playerColour.put(player.getName(), colour);
         player.sendMessage(colourise(colour + "Your chat colour has been saved."));
     }
 
-    public static void resetPlayerColour(Player player) {
+    public static void resetPlayerColour(@NotNull Player player) {
         if (playerColour.containsKey(player.getName())) {
             playerColour.remove(player.getName());
             player.sendMessage(colourise("&cYour chat colour has been reset."));
@@ -79,7 +80,7 @@ public class PlayerColourManager implements Serializable {
         player.sendMessage(colourise("&cYou don't have any colour assigned."));
     }
 
-    public static String getPlayerColour(Player player) {
+    public static String getPlayerColour(@NotNull Player player) {
         if (playerColour.containsKey(player.getName())) {
             return playerColour.getOrDefault(player.getName(), "");
         }

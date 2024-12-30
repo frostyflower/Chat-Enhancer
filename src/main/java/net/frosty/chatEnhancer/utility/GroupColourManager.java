@@ -25,7 +25,7 @@ public class GroupColourManager {
     }
 
     public static String getGroupColour(Player player) {
-        String group = perms.getPrimaryGroup(player);
+        final String group = perms.getPrimaryGroup(player);
         return groupColours.getOrDefault(group, "");
     }
 }

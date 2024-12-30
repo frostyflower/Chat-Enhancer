@@ -2,14 +2,12 @@ package net.frosty.chatEnhancer.utility;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import org.bukkit.ChatColor;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ColourUtility {
     private static final Pattern COLOR_PATTERN = Pattern.compile("(?i)&[0-9A-FK-OR]|§[0-9A-FK-OR]|&#[A-Fa-f0-9]{6}|&#[A-Fa-f0-9]{3}");
-    private static final Pattern HEX_PATTERN = Pattern.compile("&#([0-9a-fA-F]{6})");
 
     public static Component colourise(String text) {
         return LegacyComponentSerializer.legacyAmpersand().deserialize(text);
@@ -43,37 +41,23 @@ public class ColourUtility {
     }
 
     public static String hexToMiniMessage(String text) {
-        Pattern hexPattern = Pattern.compile("&#([0-9a-fA-F]{6})");
-        Matcher matcher = hexPattern.matcher(text);
-        StringBuilder buffer = new StringBuilder();
+        final Pattern hexPattern = Pattern.compile("&#([0-9a-fA-F]{6})");
+        final Matcher matcher = hexPattern.matcher(text);
+        final StringBuilder buffer = new StringBuilder();
         while (matcher.find()) {
-            String hex = matcher.group(1);
+            final String hex = matcher.group(1);
             matcher.appendReplacement(buffer, "<color:#" + hex + ">");
         }
         matcher.appendTail(buffer);
         return buffer.toString();
     }
 
-
     public static boolean isOnlyColourCode(String message) {
-        String strippedMessage = COLOR_PATTERN.matcher(message).replaceAll("");
+        final String strippedMessage = COLOR_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
     }
 
     public static String stripAllColors(String input) {
         return COLOR_PATTERN.matcher(input).replaceAll("");
-    }
-
-    public static String getLastColor(String input) {
-        input = ChatColor.translateAlternateColorCodes('&', input);
-        Matcher matcher = HEX_PATTERN.matcher(input);
-        String lastHex = null;
-        while (matcher.find()) {
-            lastHex = matcher.group();
-        }
-        if (lastHex != null) {
-            return lastHex;
-        }
-        return ChatColor.getLastColors(input).replace('§', '&');
     }
 }
