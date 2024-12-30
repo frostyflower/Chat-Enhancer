@@ -1,7 +1,7 @@
 package net.frosty.chatEnhancer;
 
-import github.scarsz.discordsrv.DiscordSRV;
-import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
+//import github.scarsz.discordsrv.DiscordSRV;
+//import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
@@ -19,7 +19,7 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+//import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -28,7 +28,7 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
+//import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,10 +53,10 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     private static boolean PAPI = false;
 
-    private static boolean discordSRV = false;
-    private static String srvId;
-    private static String srvGroupMessage;
-    private static String srvNoGroupMessage;
+//    private static boolean discordSRV = false;
+//    private static String srvId;
+//    private static String srvGroupMessage;
+//    private static String srvNoGroupMessage;
 
     private static PlayerColourManager playerColourManager;
 
@@ -81,11 +81,11 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             getLogger().info("Vault not found. Please install Vault for better experience.");
         }
 
-        if (Bukkit.getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
-            getLogger().info("Luckperms found.");
-        } else {
-            getLogger().warning("LuckPerms not found.");
-        }
+//        if (Bukkit.getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
+//            getLogger().info("Luckperms found.");
+//        } else {
+//            getLogger().warning("LuckPerms not found.");
+//        }
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             PAPI = true;
@@ -94,35 +94,35 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             getLogger().warning("Install PlaceholderAPI for placeholder support.");
         }
 
-        if (Bukkit.getServer().getPluginManager().isPluginEnabled("Skript")) {
-            if (Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("MONITOR")
-            ||  Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("HIGHEST")) {
-                getLogger().warning("Skript detected. Setting event priority to highest.");
-                config.set("chat-event-priority", "HIGHEST");
-                saveConfig();
-            }
-        }
+//        if (Bukkit.getServer().getPluginManager().isPluginEnabled("Skript")) {
+//            if (Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("MONITOR")
+//            ||  Objects.requireNonNull(config.getString("chat-event-priority")).equalsIgnoreCase("HIGHEST")) {
+//                getLogger().warning("Skript detected. Setting event priority to highest.");
+//                config.set("chat-event-priority", "HIGHEST");
+//                saveConfig();
+//            }
+//        }
 
-        if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
-            discordSRV = true;
-            getLogger().info("DiscordSRV found.");
-        } else {
-            getLogger().warning("DiscordSRV not found.");
-        }
+//        if (Bukkit.getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
+//            discordSRV = true;
+//            getLogger().info("DiscordSRV found.");
+//        } else {
+//            getLogger().warning("DiscordSRV not found.");
+//        }
 
-        if (discordSRV) {
-            final File srvConfigFile = new File(DiscordSRV.getPlugin().getDataFolder(), "config.yml");
-            final FileConfiguration srvConfig = YamlConfiguration.loadConfiguration(srvConfigFile);
-
-            final File messagesFile = new File(DiscordSRV.getPlugin().getDataFolder(), "messages.yml");
-            final FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
-
-            srvId = srvConfig.getString("Channels.global");
-            srvGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormat");
-            srvNoGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormatNoPrimaryGroup");
-            getLogger().info("Channel ID: " + srvId);
-            Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
-        }
+//        if (discordSRV) {
+//            final File srvConfigFile = new File(DiscordSRV.getPlugin().getDataFolder(), "config.yml");
+//            final FileConfiguration srvConfig = YamlConfiguration.loadConfiguration(srvConfigFile);
+//
+//            final File messagesFile = new File(DiscordSRV.getPlugin().getDataFolder(), "messages.yml");
+//            final FileConfiguration messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
+//
+//            srvId = srvConfig.getString("Channels.global");
+//            srvGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormat");
+//            srvNoGroupMessage = messagesConfig.getString("MinecraftChatToDiscordMessageFormatNoPrimaryGroup");
+//            getLogger().info("Channel ID: " + srvId);
+//            Bukkit.getConsoleSender().sendMessage(colourise("&eHooked into DiscordSRV."));
+//        }
 
         getServer().getPluginManager().registerEvents(this, this);
 //        getServer().getPluginManager().registerEvent(
@@ -213,6 +213,13 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         final Player sender = event.getPlayer();
         final boolean perWorld = config.getBoolean("per-world");
         final World playerWorld = sender.getWorld();
+
+        if (plainTextComponentSerializer.serialize(event.message()).matches(".*<\\[(i|item)]>.*")) {
+            event.setCancelled(true);
+            sender.sendMessage(Component.text("You cannot use that in chat!", NamedTextColor.RED));
+            return;
+        }
+
         event.viewers().removeIf(audience -> {
             if (perWorld && audience instanceof Player player) {
                 return !player.getWorld().equals(playerWorld);
@@ -223,34 +230,34 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             @Override
             public @NotNull Component render(@NotNull Player player, @NotNull Component displayName, @NotNull Component message, @NotNull Audience audience) {
                 final String messageText = plainTextComponentSerializer.serialize(message);
-                discordMessenger(sender, messageText);
+//                discordMessenger(sender, messageText);
                 return Component.text().append(renderedMessage(player, messageText)).build();
             }
         });
     }
 
     //Utility.
-    private void discordMessenger(Player player, String message) {
-        if (discordSRV) {
-            final String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
-                    perms.getPrimaryGroup(player);
-            String discordMessage;
-            if (playerGroup == null) {
-                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName())
-                        .replace("%message%", message);
-            } else {
-                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat != null ? chat.getPlayerPrefix(player) : ""))
-                        .replace("%displayname%", player.getName()).replace("%message%", message);
-            }
-            discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
-            final TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
-            if (channel != null) {
-                channel.sendMessage(discordMessage).queue();
-            } else {
-                throw new RuntimeException("Error! Discord channel not found!");
-            }
-        }
-    }
+//    private void discordMessenger(Player player, String message) {
+//        if (discordSRV) {
+//            final String playerGroup = perms.getPrimaryGroup(player).isEmpty() ? null :
+//                    perms.getPrimaryGroup(player);
+//            String discordMessage;
+//            if (playerGroup == null) {
+//                discordMessage = srvNoGroupMessage.replace("%displayname%", player.getName())
+//                        .replace("%message%", message);
+//            } else {
+//                discordMessage = srvGroupMessage.replace("%primarygroup%", stripAllColors(chat != null ? chat.getPlayerPrefix(player) : ""))
+//                        .replace("%displayname%", player.getName()).replace("%message%", message);
+//            }
+//            discordMessage = PAPI ? PlaceholderAPI.setPlaceholders(player, discordMessage) : discordMessage;
+//            final TextChannel channel = DiscordSRV.getPlugin().getMainGuild().getTextChannelById(srvId);
+//            if (channel != null) {
+//                channel.sendMessage(discordMessage).queue();
+//            } else {
+//                throw new RuntimeException("Error! Discord channel not found!");
+//            }
+//        }
+//    }
 
     private @NotNull Component renderedMessage(@NotNull Player player, @NotNull String message) {
         String template = config.getString("chat-format");
