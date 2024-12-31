@@ -138,7 +138,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (args.length == 1) {
                 Player targetPlayer = Bukkit.getPlayer(args[0]);
                 if (targetPlayer != null) {
-                    sender.sendMessage(colourise("&a" + targetPlayer.getName() + "'s colour: ").append(Component.text(getPlayerColour(targetPlayer))));
+                    resetPlayerColour((Player) sender, targetPlayer);
                     return true;
                 }
                 sender.sendMessage(colourise("&cPlayer not found."));
