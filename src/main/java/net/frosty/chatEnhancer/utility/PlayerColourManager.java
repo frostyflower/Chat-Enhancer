@@ -46,7 +46,7 @@ public class PlayerColourManager implements Serializable {
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(serFile))) {
             playerColour = (Map<String, String>) ois.readObject();
-            plugin.getLogger().info("Successfully loaded player colours data.");
+            plugin.getLogger().info("Successfully loaded player colours data");
         } catch (IOException | ClassNotFoundException e) {
             plugin.getLogger().severe("Error loading player colours data: " + e.getMessage());
             Bukkit.getServer().getPluginManager().disablePlugin(plugin);
@@ -59,7 +59,7 @@ public class PlayerColourManager implements Serializable {
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(serFile))) {
             oos.writeObject(playerColour);
-            plugin.getLogger().info("Successfully saved player colours data.");
+            plugin.getLogger().info("Successfully saved player colours data");
         } catch (IOException e) {
             plugin.getLogger().severe("Error saving player colours data: " + e.getMessage());
             Bukkit.getServer().getPluginManager().disablePlugin(plugin);
@@ -68,16 +68,34 @@ public class PlayerColourManager implements Serializable {
 
     public static void setPlayerColour(@NotNull String colour, @NotNull Player player) {
         playerColour.put(player.getName(), colour);
-        player.sendMessage(colourise(colour + "Your chat colour has been saved."));
+        player.sendMessage(colourise("&aYour chat colour has been saved"));
+    }
+
+    public static void setPlayerColour(@NotNull String colour, @NotNull Player sender, @NotNull Player targetPlayer) {
+        String targetPlayerName = targetPlayer.getName();
+        playerColour.put(targetPlayerName, colour);
+        sender.sendMessage(colourise("&e" + targetPlayerName + "'s chat colour has been saved"));
+        targetPlayer.sendMessage(colourise("&eYour chat colour has been set to: &r" + colour + "■"));
     }
 
     public static void resetPlayerColour(@NotNull Player player) {
         if (playerColour.containsKey(player.getName())) {
             playerColour.remove(player.getName());
-            player.sendMessage(colourise("&cYour chat colour has been reset."));
+            player.sendMessage(colourise("&cYour chat colour has been reset"));
             return;
         }
-        player.sendMessage(colourise("&cYou don't have any colour assigned."));
+        player.sendMessage(colourise("&cYou don't have any colour assigned"));
+    }
+
+    public static void resetPlayerColour(@NotNull Player player, @NotNull Player targetPlayer) {
+        String targetPlayerName = targetPlayer.getName();
+        if (playerColour.containsKey(targetPlayerName)) {
+            playerColour.remove(targetPlayerName);
+            player.sendMessage(colourise("&c" + targetPlayerName + "'s chat colour has been reset"));
+            targetPlayer.sendMessage(colourise("&cYour chat colour has been reset"));
+            return;
+        }
+        player.sendMessage(colourise("&c" + targetPlayerName + " doesn't have any colour assigned"));
     }
 
     public static String getPlayerColour(@NotNull Player player) {

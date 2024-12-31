@@ -36,3 +36,9 @@ commands:
     permission: "chatenhancer.playerchatcolour"
     permission-message: "§cError: §4You don't have the right to use this command."
     default: op
+  setcolour:
+    description: "Set custom chat colour to target player."
+    usage: "§cError: §4Invalid usage."
+    permission: "chatenhancer.setcolour"
+    permission-message: "§cError: §4You don't have the right to use this command."
+    default: op

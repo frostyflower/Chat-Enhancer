@@ -26,5 +26,8 @@ group-colours:
 per-world: false
 
 #Chat options.
+#Display items in chat.
+chat-items: true
+
 #Allow player to use text inside angled bracket "<Example>" and it will parse as a copyable text.
 chat-clipboard: true
