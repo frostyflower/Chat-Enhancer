@@ -7,7 +7,6 @@ description: A simple chat utilities plugin.
 depend:
   - Vault
 softdepend:
-  - DiscordSRV
   - PlaceholderAPI
 permissions:
   chatenhancer.chatcolour:
