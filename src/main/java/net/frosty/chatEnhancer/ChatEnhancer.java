@@ -233,7 +233,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     //Utility.
     private @NotNull Component renderedMessage(@NotNull Player player, @NotNull String message) {
         String template = config.getString("chat-format");
-        final boolean chatItem = config.getBoolean("chat-item");
+        final boolean chatItem = config.getBoolean("chat-items");
         final boolean chatClipboard = config.getBoolean("chat-clipboard");
         final String playerName = player.getName();
         final String prefix = chat != null ? chat.getPlayerPrefix(player) : "";

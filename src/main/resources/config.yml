@@ -4,7 +4,7 @@
 #PlaceholderAPI support.
 #Default placeholders {player}, {message}, {prefix}, {suffix} and {world}.
 #This is the default format for all groups.
-chat-format: "<hover:show_text:'{prefix}'><gray>[</gray>{prefix}<gray>]</gray></hover><gray> {player}:</gray> {message}"
+chat-format: "{prefix}<reset><gray><hover:show_text:'{player}'><click:suggest_command:'/msg {player} '>{player}</click></hover>: <reset>{message}"
 
 #Group chat colours.
 #Do not delete default group.
@@ -20,7 +20,7 @@ group-colours:
 #group-formats:
 #  admin: "&7[&cAdmin&7] {player}: {message}"
 
-#BETA FEATURE.
+#ALL SETTINGS BELOW ARE BETA FEATURE.
 #World options.
 #Only players in the same world as sender can see the message.
 per-world: false
