@@ -3,7 +3,8 @@ package net.frosty.chatEnhancer;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.frosty.chatEnhancer.utility.PlayerColourManager;
+import net.frosty.chatEnhancer.utility.GroupUtility;
+import net.frosty.chatEnhancer.utility.PlayerColourUtility;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -32,9 +33,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourUtility.*;
-import static net.frosty.chatEnhancer.utility.GroupColourManager.getGroupColour;
-import static net.frosty.chatEnhancer.utility.GroupColourManager.initialiseGroupColor;
-import static net.frosty.chatEnhancer.utility.PlayerColourManager.*;
+import static net.frosty.chatEnhancer.utility.GroupUtility.getGroupColour;
+import static net.frosty.chatEnhancer.utility.GroupUtility.getGroupFormat;
+import static net.frosty.chatEnhancer.utility.PlayerColourUtility.*;
 
 public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
@@ -49,7 +50,8 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     private static boolean PAPI = false;
 
-    private static PlayerColourManager playerColourManager;
+    private static PlayerColourUtility playerColourUtility;
+    private static GroupUtility groupUtility;
 
     @Override
     public void onEnable() {
@@ -57,9 +59,11 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         saveDefaultConfig();
         config = getConfig();
 
-        playerColourManager = new PlayerColourManager(this);
-        playerColourManager.initialiseData();
-        initialiseGroupColor(this);
+        playerColourUtility = new PlayerColourUtility(this);
+        playerColourUtility.initialiseData();
+
+        groupUtility = new GroupUtility(this);
+        groupUtility.initialiseGroupUtility();
 
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
@@ -97,7 +101,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        playerColourManager.saveData();
+        playerColourUtility.saveData();
         getLogger().info("ChatEnhancer disabled.");
     }
 
@@ -114,7 +118,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
                 config = getConfig();
-                initialiseGroupColor(this);
+                groupUtility.initialiseGroupUtility();
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
             }
@@ -232,7 +236,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
 
     //Utility.
     private @NotNull Component renderedMessage(@NotNull Player player, @NotNull String message) {
-        String template = config.getString("chat-format");
+        String template = getGroupFormat(player);
         final boolean chatItem = config.getBoolean("chat-items");
         final boolean chatClipboard = config.getBoolean("chat-clipboard");
         final String playerName = player.getName();
@@ -273,7 +277,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                         .replacement((matchResult, builder2) -> chatItem
                                 ? player.getInventory().getItemInMainHand().displayName()
                                 .append(player.getInventory().getItemInMainHand().getAmount() > 1
-                                        ? Component.text(" x" + player.getInventory().getItemInMainHand().getAmount(), NamedTextColor.GRAY)
+                                        ? Component.text(" x" + player.getInventory().getItemInMainHand().getAmount(), NamedTextColor.AQUA)
                                         : Component.empty()
                                 )
                                 .hoverEvent(player.getInventory().getItemInMainHand().asHoverEvent())

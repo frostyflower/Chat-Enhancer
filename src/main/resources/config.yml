@@ -4,21 +4,27 @@
 #PlaceholderAPI support.
 #Default placeholders {player}, {message}, {prefix}, {suffix} and {world}.
 #This is the default format for all groups.
-chat-format: "{prefix}<reset><gray><hover:show_text:'{player}'><click:suggest_command:'/msg {player} '>{player}</click></hover>: <reset>{message}"
+#Commenting this will cause unwanted errors.
+default-format: "&7{player}: {message}"
 
 #Group chat colours.
 #Do not delete default group.
 #Add more as you wish.
+#Comment all if you're not using.
 group-colours:
   admin: "&#57ffab"
   mvp: "&6"
   vip: "&c"
   default: "&r"
 
-#Group chat formats. [Not implemented yet]
+#Group chat formats.
 #Same placeholder as in default format.
+#Comment all if you're not using.
 #group-formats:
+#  owner: "&7[&4Owner&7] {player}: {message}"
+#  dev: "&7[&bDev&7] {player}: {message}"
 #  admin: "&7[&cAdmin&7] {player}: {message}"
+#  mod:  "&7[&5Mod&7] {player}: {message}"
 
 #ALL SETTINGS BELOW ARE BETA FEATURE.
 #World options.

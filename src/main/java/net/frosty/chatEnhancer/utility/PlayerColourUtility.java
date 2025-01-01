@@ -11,7 +11,7 @@ import java.util.Map;
 
 import static net.frosty.chatEnhancer.utility.ColourUtility.colourise;
 
-public class PlayerColourManager implements Serializable {
+public class PlayerColourUtility implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
     private final transient JavaPlugin plugin;
@@ -19,7 +19,7 @@ public class PlayerColourManager implements Serializable {
     private static final String DATA_FOLDER = "_data";
     private static final String SAVE_FILE = "player_colour";
 
-    public PlayerColourManager(JavaPlugin plugin) {
+    public PlayerColourUtility(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
