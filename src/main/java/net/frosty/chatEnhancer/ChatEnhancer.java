@@ -22,6 +22,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -38,16 +39,15 @@ import static net.frosty.chatEnhancer.utility.GroupUtility.getGroupFormat;
 import static net.frosty.chatEnhancer.utility.PlayerColourUtility.*;
 
 public final class ChatEnhancer extends JavaPlugin implements Listener {
-    private static final Pattern CLIPBOARD_PATTERN = Pattern.compile("<(.*?)>");
-    private static final String CLIPBOARD_REPLACEMENT = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
+    private static final Pattern CL_PAT = Pattern.compile("<(.*?)>");
+    private static final String CL_REP = "<click:copy_to_clipboard:'$1'><hover:show_text:'<gray>Click to copy to clipboard.</gray>'><u><yellow>$1</yellow></u></hover></click>";
     private static FileConfiguration config;
     private static final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private static final LegacyComponentSerializer legacyComponentSerializer = LegacyComponentSerializer.legacyAmpersand();
-    private static final PlainTextComponentSerializer plainTextComponentSerializer = PlainTextComponentSerializer.plainText();
+    private static final LegacyComponentSerializer lcs = LegacyComponentSerializer.legacyAmpersand();
+    private static final PlainTextComponentSerializer pcs = PlainTextComponentSerializer.plainText();
 
     public static Chat chat = null;
     public static Permission perms = null;
-
     private static boolean PAPI = false;
 
     private static PlayerColourUtility playerColourUtility;
@@ -58,13 +58,10 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         final long startTime = System.currentTimeMillis();
         saveDefaultConfig();
         config = getConfig();
-
         playerColourUtility = new PlayerColourUtility(this);
         playerColourUtility.initialiseData();
-
         groupUtility = new GroupUtility(this);
         groupUtility.initialiseGroupUtility();
-
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
             final RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
@@ -75,26 +72,13 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         } else {
             getLogger().info("Vault not found. Please install Vault for better experience.");
         }
-
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             PAPI = true;
             getLogger().info("PlaceholderAPI found.");
         } else {
             getLogger().warning("Install PlaceholderAPI for placeholder support.");
         }
-
         getServer().getPluginManager().registerEvents(this, this);
-//        getServer().getPluginManager().registerEvent(
-//                AsyncPlayerChatEvent.class,
-//                this,
-//                CHAT_PRIORITY,
-//                (listener, event) -> {
-//                    if (event instanceof AsyncPlayerChatEvent) {
-//                        onPlayerChat((AsyncPlayerChatEvent) event);
-//                    }
-//                },
-//                this
-//        );
         final long duration = System.currentTimeMillis() - startTime;
         Bukkit.getConsoleSender().sendMessage(colourise("&eChatEnhancer enabled in " + duration + "ms."));
     }
@@ -169,39 +153,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             );
         }
         if (command.getName().equalsIgnoreCase("chatcolour") && args.length == 1) {
-            List<String> colourList = new ArrayList<>();
-            for (int i = 0; i <= 9; i++) {
-                colourList.add("&" + i);
-            }
-            for (char c = 'a'; c <= 'f'; c++) {
-                colourList.add("&" + c);
-            }
-            for (char s = 'k'; s <= 'o'; s++) {
-                colourList.add("&" + s);
-            }
-            colourList.add("&r");
-            Collections.sort(colourList);
-            return colourList;
+            return List.of(
+                    "&a",
+                    "&#55FF55"
+            );
         }
-        if (command.getName().equalsIgnoreCase("setcolour") && args.length < 3) {
-            if (args.length == 1) {
-                return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
-            }
-            if (args.length == 2) {
-                List<String> colourList = new ArrayList<>();
-                for (int i = 0; i <= 9; i++) {
-                    colourList.add("&" + i);
-                }
-                for (char c = 'a'; c <= 'f'; c++) {
-                    colourList.add("&" + c);
-                }
-                for (char s = 'k'; s <= 'o'; s++) {
-                    colourList.add("&" + s);
-                }
-                colourList.add("&r");
-                Collections.sort(colourList);
-                return colourList;
-            }
+        if (command.getName().equalsIgnoreCase("setcolour")) {
+            return switch (args.length) {
+                case 1 -> new ArrayList<>(Bukkit.getOnlinePlayers().stream()
+                        .map(Player::getName)
+                        .toList());
+                case 2 -> List.of("&a", "&#55FF55");
+                default -> Collections.emptyList();
+            };
         }
         return Collections.emptyList();
     }
@@ -210,15 +174,18 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(AsyncChatEvent event) {
         final Player sender = event.getPlayer();
+        final String message = pcs.serialize(event.message());
         final boolean perWorld = config.getBoolean("per-world");
         final World playerWorld = sender.getWorld();
-
-        if (plainTextComponentSerializer.serialize(event.message()).matches(".*<\\[(i|item)]>.*")) {
+        if (message.matches(".*<\\[(i|item)]>.*")) {
             event.setCancelled(true);
             sender.sendMessage(colourise("&cError: &4You can't use that in chat."));
             return;
         }
-
+        if (isOnlyColourCode(message)) {
+            event.setCancelled(true);
+            return;
+        }
         event.viewers().removeIf(audience -> {
             if (perWorld && audience instanceof Player player) {
                 return !player.getWorld().equals(playerWorld);
@@ -228,7 +195,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         event.renderer(new ChatRenderer() {
             @Override
             public @NotNull Component render(@NotNull Player player, @NotNull Component displayName, @NotNull Component message, @NotNull Audience audience) {
-                final String messageText = plainTextComponentSerializer.serialize(message);
+                final String messageText = pcs.serialize(message);
                 return Component.text().append(renderedMessage(player, messageText)).build();
             }
         });
@@ -244,7 +211,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         final String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
         final String world = player.getWorld().getName();
         final String groupColour = getGroupColour(player);
-
         final boolean chatColor = player.hasPermission("chatenhancer.chatcolour");
         final String playerColour = getPlayerColour(player);
         template = Objects.requireNonNull(template)
@@ -254,35 +220,42 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
                 .replace("{prefix}", prefix).replace("{suffix}", suffix)
                 .replace("{world}", world);
         template = PAPI ? PlaceholderAPI.setPlaceholders(player, template) : template;
-        template = ampersandToMiniMessage(template);
-        template = hexToMiniMessage(template);
-        final Component groupChatColour = legacyComponentSerializer
-                .deserialize(groupColour + (chatColor ? message : stripAllColors(message)));
-        final Component finalColourProcess = playerColour.isEmpty() ? groupChatColour :
-                legacyComponentSerializer.deserialize(playerColour + (chatColor ? message :
-                        stripAllColors(message)));
+        template = colouriseAllToMiniMessage(template);
+        final String baseColor = playerColour.isEmpty() ? groupColour : playerColour;
+        final Component messageComponent = chatColor
+                ? lcs.deserialize(message)
+                : Component.text(message);
+        final Component finalComponent = lcs.deserialize(baseColor).append(messageComponent);
         return miniMessage.deserialize(template)
                 .replaceText(builder -> builder.matchLiteral("{message}")
-                        .replacement(chatClipboard ? finalColourProcess
-                                .replaceText(clipboardMessage -> clipboardMessage.match(CLIPBOARD_PATTERN)
-                                .replacement(((matchResult, input) -> {
-                                    final String clipboard = matchResult.group(1);
-                                    if (clipboard.isEmpty()) {
-                                        return Component.text("<>");
-                                    }
-                                    String replacement = CLIPBOARD_REPLACEMENT.replace("$1", clipboard);
-                                    return miniMessage.deserialize(replacement);
-                                }))) : finalColourProcess))
+                        .replacement(chatClipboard ? finalComponent
+                                .replaceText(clipboardMessage -> clipboardMessage
+                                        .match(CL_PAT)
+                                        .replacement(((matchResult, input) -> {
+                                            final String clipboard = matchResult.group(1);
+                                            if (clipboard.isEmpty()) {
+                                                return Component.text("<>");
+                                            }
+                                            final String replacement = CL_REP.replace("$1", clipboard);
+                                            return miniMessage.deserialize(replacement);
+                                        }))) : finalComponent))
                 .replaceText(builder -> builder.match("\\[(i|item)\\]")
                         .replacement((matchResult, builder2) -> chatItem
-                                ? player.getInventory().getItemInMainHand().displayName()
-                                .append(player.getInventory().getItemInMainHand().getAmount() > 1
-                                        ? Component.text(" x" + player.getInventory().getItemInMainHand().getAmount(), NamedTextColor.AQUA)
-                                        : Component.empty()
-                                )
-                                .hoverEvent(player.getInventory().getItemInMainHand().asHoverEvent())
-                                : Component.text(matchResult.group())
+                                ? showHeldItems(player, matchResult.group()) : Component.text(matchResult.group())
                         )
                 );
+    }
+
+    private Component showHeldItems(Player player, String fallback) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item.getAmount() <= 0 || item.getType().isAir()) {
+            return Component.text(fallback);
+        }
+        return player.getInventory().getItemInMainHand().displayName()
+                .append(player.getInventory().getItemInMainHand().getAmount() > 1
+                        ? Component.text(" x" + player.getInventory()
+                        .getItemInMainHand().getAmount(), NamedTextColor.AQUA)
+                        : Component.empty()
+                ).hoverEvent(player.getInventory().getItemInMainHand().asHoverEvent());
     }
 }

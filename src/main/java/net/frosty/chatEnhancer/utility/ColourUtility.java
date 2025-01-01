@@ -13,7 +13,7 @@ public class ColourUtility {
         return LegacyComponentSerializer.legacyAmpersand().deserialize(text);
     }
 
-    public static String ampersandToMiniMessage(String input) {
+    public static String ampersand(String input) {
         //Normal colours
         input = input.replace("&1", "<dark_blue>")
                 .replace("&2", "<dark_green>")
@@ -40,9 +40,9 @@ public class ColourUtility {
         return input;
     }
 
-    public static String hexToMiniMessage(String text) {
+    public static String hex(String input) {
         final Pattern hexPattern = Pattern.compile("&#([0-9a-fA-F]{6})");
-        final Matcher matcher = hexPattern.matcher(text);
+        final Matcher matcher = hexPattern.matcher(input);
         final StringBuilder buffer = new StringBuilder();
         while (matcher.find()) {
             final String hex = matcher.group(1);
@@ -52,12 +52,16 @@ public class ColourUtility {
         return buffer.toString();
     }
 
+    public static String colouriseAllToMiniMessage(String input) {
+        return hex(ampersand(input));
+    }
+
     public static boolean isOnlyColourCode(String message) {
         final String strippedMessage = COLOR_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
     }
 
-    public static String stripAllColors(String input) {
-        return COLOR_PATTERN.matcher(input).replaceAll("");
-    }
+//    public static String stripAllColors(String input) {
+//        return COLOR_PATTERN.matcher(input).replaceAll("");
+//    }
 }

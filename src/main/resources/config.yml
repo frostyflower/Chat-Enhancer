@@ -2,9 +2,9 @@
 
 #Support both MiniMessage and ampersand formatting.
 #PlaceholderAPI support.
-#Default placeholders {player}, {message}, {prefix}, {suffix} and {world}.
 #This is the default format for all groups.
-#Commenting this will cause unwanted errors.
+#Default placeholders {player}, {message}, {prefix}, {suffix} and {world}.
+#Commenting this option will cause severe errors!
 default-format: "&7{player}: {message}"
 
 #Group chat colours.

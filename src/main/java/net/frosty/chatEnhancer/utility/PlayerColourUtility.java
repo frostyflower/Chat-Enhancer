@@ -75,7 +75,7 @@ public class PlayerColourUtility implements Serializable {
         String targetPlayerName = targetPlayer.getName();
         playerColour.put(targetPlayerName, colour);
         sender.sendMessage(colourise("&e" + targetPlayerName + "'s chat colour has been saved"));
-        targetPlayer.sendMessage(colourise("&eYour chat colour has been set to: &r" + colour + "■"));
+        targetPlayer.sendMessage(colourise(String.format("&e%s set your chat colour to: %s■", sender.getName(), colour)));
     }
 
     public static void resetPlayerColour(@NotNull Player player) {
