@@ -3,7 +3,6 @@ package net.frosty.chatEnhancer;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.frosty.chatEnhancer.utility.GroupUtility;
 import net.frosty.chatEnhancer.utility.PlayerColourUtility;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -34,8 +33,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static net.frosty.chatEnhancer.utility.ColourUtility.*;
-import static net.frosty.chatEnhancer.utility.GroupUtility.getGroupColour;
-import static net.frosty.chatEnhancer.utility.GroupUtility.getGroupFormat;
+import static net.frosty.chatEnhancer.utility.GroupUtility.*;
 import static net.frosty.chatEnhancer.utility.PlayerColourUtility.*;
 
 public final class ChatEnhancer extends JavaPlugin implements Listener {
@@ -51,7 +49,6 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     private static boolean PAPI = false;
 
     private static PlayerColourUtility playerColourUtility;
-    private static GroupUtility groupUtility;
 
     @Override
     public void onEnable() {
@@ -60,8 +57,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         config = getConfig();
         playerColourUtility = new PlayerColourUtility(this);
         playerColourUtility.initialiseData();
-        groupUtility = new GroupUtility(this);
-        groupUtility.initialiseGroupUtility();
+        initialiseGroupUtility(this);
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             getLogger().info("Vault found.");
             final RegisteredServiceProvider<Chat> rsp = getServer().getServicesManager().getRegistration(Chat.class);
@@ -102,7 +98,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
             if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
                 reloadConfig();
                 config = getConfig();
-                groupUtility.initialiseGroupUtility();
+                initialiseGroupUtility(this);
                 sender.sendMessage(colourise("&aConfig reloaded successfully."));
                 return true;
             }
@@ -207,8 +203,19 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
         final boolean chatItem = config.getBoolean("chat-items");
         final boolean chatClipboard = config.getBoolean("chat-clipboard");
         final String playerName = player.getName();
-        final String prefix = chat != null ? chat.getPlayerPrefix(player) : "";
-        final String suffix = chat != null ? chat.getPlayerSuffix(player) : "";
+        String prefix = "";
+        String suffix = "";
+        try {
+            if (chat != null) {
+                prefix = chat.getPlayerPrefix(player);
+                suffix = chat.getPlayerSuffix(player);
+                if (prefix == null) prefix = "";
+                if (suffix == null) suffix = "";
+            }
+        } catch (Exception e) {
+            prefix = "";
+            suffix = "";
+        }
         final String world = player.getWorld().getName();
         final String groupColour = getGroupColour(player);
         final boolean chatColor = player.hasPermission("chatenhancer.chatcolour");

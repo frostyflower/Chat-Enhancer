@@ -60,8 +60,4 @@ public class ColourUtility {
         final String strippedMessage = COLOR_PATTERN.matcher(message).replaceAll("");
         return strippedMessage.trim().isEmpty();
     }
-
-//    public static String stripAllColors(String input) {
-//        return COLOR_PATTERN.matcher(input).replaceAll("");
-//    }
 }

@@ -11,16 +11,12 @@ import java.util.Map;
 import static net.frosty.chatEnhancer.ChatEnhancer.perms;
 
 public class GroupUtility {
-    private static FileConfiguration config = null;
     private static String defaultFormat;
     private static Map<String, String> groupColours;
     private static Map<String, String> groupFormats;
 
-    public GroupUtility(JavaPlugin plugin) {
-        config = plugin.getConfig();
-    }
-
-    public void initialiseGroupUtility() {
+    public static void initialiseGroupUtility(JavaPlugin plugin) {
+        FileConfiguration config = plugin.getConfig();
         defaultFormat = config.getString("default-format");
         groupColours = new HashMap<>();
         ConfigurationSection colourSection = config.getConfigurationSection("group-colours");
@@ -48,13 +44,21 @@ public class GroupUtility {
         }
     }
 
-    public static String getGroupColour(Player player) {
-        final String group = perms.getPrimaryGroup(player);
-        return groupColours.getOrDefault(group, "");
+    public static String getGroupFormat(Player player) {
+        try {
+            final String group = perms.getPrimaryGroup(player);
+            return groupFormats.getOrDefault(group, defaultFormat);
+        } catch (Exception ignored) {
+            return defaultFormat;
+        }
     }
 
-    public static String getGroupFormat(Player player) {
-        final String group = perms.getPrimaryGroup(player);
-        return groupFormats.getOrDefault(group, defaultFormat);
+    public static String getGroupColour(Player player) {
+        try {
+            final String group = perms.getPrimaryGroup(player);
+            return groupColours.getOrDefault(group, "");
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 }
