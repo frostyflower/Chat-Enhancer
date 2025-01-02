@@ -247,7 +247,7 @@ public final class ChatEnhancer extends JavaPlugin implements Listener {
     }
 
     private Component showHeldItems(Player player, String fallback) {
-        ItemStack item = player.getInventory().getItemInMainHand();
+        final ItemStack item = player.getInventory().getItemInMainHand();
         if (item.getAmount() <= 0 || item.getType().isAir()) {
             return Component.text(fallback);
         }
